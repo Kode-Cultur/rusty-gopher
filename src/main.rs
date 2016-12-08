@@ -140,26 +140,19 @@ fn main() {
             let llog = rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
             info!(llog, "listening");
             
-            unsafe {
-                let desired_user_name = std::ffi::CString::new(user.clone()).unwrap();
-                let desired_user_name_ptr = desired_user_name.as_ptr();
-                let desired_user_passwd = libc::getpwnam(desired_user_name_ptr);
-
-                if desired_user_passwd.is_null() {
-                    error!(llog, "User {} not found. Please check your configuration file.", user);
-                    std::process::exit(libc::EXIT_FAILURE);
-                }
-
-                let mut uid = libc::getuid();
-                if uid != (*desired_user_passwd).pw_uid { 
-                    info!(llog, "switching user"; "current user" => uid, "desired user" => (*desired_user_passwd).pw_uid);
-                    if libc::setuid((*desired_user_passwd).pw_uid) != 0 {
-                        error!(llog, "Error setting user ID");
-                        std::process::exit(libc::EXIT_FAILURE);
-                    } else {
-                        uid = libc::getuid();
-                        info!(llog, "user switch successfull"; "current user" => uid);
+            match get_uid_by_name(user.clone()) {
+                Ok(desired_uid) => {
+                    match switch_to_uid(desired_uid) {
+                        Ok(uid) => info!(llog, "user switch successfull"; "current user" => uid),
+                        Err(e) => {
+                            crit!(llog, e; "desired uid" => desired_uid, "current uid" => get_uid());
+                            std::process::exit(libc::EXIT_FAILURE);
+                        }
                     }
+                }
+                Err(e) => {
+                    crit!(llog, e; "desired user" => user);
+                    std::process::exit(libc::EXIT_FAILURE);
                 }
             }
 
@@ -219,5 +212,42 @@ fn main() {
 fn listen_and_serve() { //TODO
 }
 
-fn switchuid() { //TODO
+fn switch_to_uid(uid: libc::uid_t) -> Result<libc::uid_t, &'static str> {
+    let olduid = get_uid();
+    if olduid == uid {
+        return Ok(olduid);
+    }
+
+    let setuidres;
+    unsafe {
+        setuidres = libc::setuid(uid);
+    }
+    if setuidres != 0 {
+        Err("Error setting uid")
+    } else {
+        Ok(get_uid())
+    }
+}
+
+fn get_uid_by_name(user: std::string::String) -> Result<libc::uid_t, &'static str> {
+    let uid;
+    unsafe {
+        let desired_user_name = std::ffi::CString::new(user.clone()).unwrap();
+        let desired_user_name_ptr = desired_user_name.as_ptr();
+        let desired_user_passwd = libc::getpwnam(desired_user_name_ptr);
+
+        if desired_user_passwd.is_null() {
+            return Err("User not found");
+        }
+        uid = (*desired_user_passwd).pw_uid;
+    }
+    Ok(uid)
+}
+
+fn get_uid() -> libc::uid_t {
+    let uid;
+    unsafe {
+        uid = libc::getuid();
+    }
+    uid
 }

@@ -135,9 +135,18 @@ fn main() {
         slog_term::streamer().full().build().
         fuse(), o!(env!("CARGO_PKG_NAME") => env!("CARGO_PKG_VERSION")));
 
+    match listen_and_serve(addr, root, user, rtlog) {
+        Some(_) => std::process::exit(libc::EXIT_FAILURE),
+        None => std::process::exit(libc::EXIT_SUCCESS),
+    }
+
+}
+
+fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String, 
+                    user: std::string::String, rtlog: slog::Logger) -> Option<std::io::Error> {
     match std::net::TcpListener::bind(addr) {
         Ok(listener) => {
-            let llog = rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
+        let llog = rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
             info!(llog, "listening");
             
             match get_uid_by_name(user.clone()) {
@@ -146,16 +155,16 @@ fn main() {
                         Ok(uid) => info!(llog, "user switch successfull"; "current user" => uid),
                         Err(e) => {
                             crit!(llog, e; "desired uid" => desired_uid, "current uid" => get_uid());
-                            std::process::exit(libc::EXIT_FAILURE);
+                            return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
                         }
                     }
                 }
                 Err(e) => {
                     crit!(llog, e; "desired user" => user);
-                    std::process::exit(libc::EXIT_FAILURE);
+                    return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
                 }
             }
-
+            
             for client in listener.incoming() {
                 match client {
                     Ok(mut c) => {
@@ -204,12 +213,14 @@ fn main() {
                     }
                 }
             }
-        }
-        Err(e) => crit!(rtlog, "error binding to {} failed {}", addr, e),
-    }
-}
 
-fn listen_and_serve() { //TODO
+            None
+        }
+        Err(e) => {
+            crit!(rtlog, "error binding to {} failed {}", addr, e);
+            Some(e)
+        }
+    }
 }
 
 fn switch_to_uid(uid: libc::uid_t) -> Result<libc::uid_t, &'static str> {

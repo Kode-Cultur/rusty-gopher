@@ -178,33 +178,35 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
                         match reader.read_line(&mut buf) {
                             Ok(input) => {
                                 debug!(clog, "got input"; "bytes read" => input);
-                                if buf == "\r\n" { 
-                                    info!(clog, "got directory list request");
-                                    match std::fs::read_dir(root.clone()) {
-                                        Ok(rd) => {
-                                            for possible_entry in rd {
-                                                match possible_entry {
-                                                    Ok(entry) => {
-                                                        debug!(clog, "Found directory entry"; "entry" => format!("{:?}", entry.path()));
-                                                        //TODO: check return value
-                                                        //TODO: use libc::_SC_HOST_NAME_MAX
-                                                        //TODO: use gethostname
-                                                        //TODO: use .collect() and search for
-                                                        //.menuinfo entries
-                                                        //https://stackoverflow.com/questions/504810/how-do-i-find-the-current-machines-full-hostname-in-c-hostname-and-domain-info
-                                                        c.write_fmt(format_args!("0DESCRIPTION\t{:?}\tOURURL\tOURPORT\r\n", entry.path()));
+
+                                match parse_input(buf) {
+                                    Ok(request) => {
+                                        match request {
+                                            GopherMessage::ListDir(selector) => {
+                                                info!(clog, "got directory list request"; "selector" => selector);
+                                                match get_directory_listing(root.clone(), selector) {
+                                                    Ok(listing) => {
+                                                        for l in listing {
+                                                            c.write_fmt(format_args!("{}{}\t{}\t{}\t{}\r\n",
+                                                                                 l.gType.to_type_string(),
+                                                                                 l.description,
+                                                                                 l.selector,
+                                                                                 l.host,
+                                                                                 l.port));
+
+                                                        }
                                                     }
-                                                    Err(e) => {
-                                                        warn!(clog, "Could not read directory entry"; "entry" => format!("{}", e));
-                                                    }
+                                                    Err(e) => error!(clog, e),
                                                 }
                                             }
-                                        }
-                                        Err(e) => {
-                                            crit!(clog, "error opening root directory. Check your config file and access privileges"; "error" => format!("{}", e));
-                                            std::process::exit(libc::EXIT_SUCCESS); //TODO
+                                            GopherMessage::SearchDir(selector, search_string) => {
+                                                debug!(clog, "got search request"; "selector" => selector);
+
+                                            }
+
                                         }
                                     }
+                                    Err(e) => error!(clog, e),
                                 }
                             }
                             Err(e) => error!(clog, "error reading input: {}", e),
@@ -215,12 +217,117 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
                     }
                 }
             }
-
-            None
         }
         Err(e) => {
             crit!(rtlog, "error binding to {} failed {}", addr, e);
-            Some(e)
+            return Some(e);
+        }
+    }
+    None
+}
+
+enum GopherMessage {
+    ListDir(std::string::String),
+    SearchDir(std::string::String, Vec<Query>),
+}
+
+enum Query {
+    And(Box<Query>, Box<Query>),
+    Or(Box<Query>, Box<Query>),
+    Not(Box<Query>),
+    SearchString(std::string::String),
+}
+
+enum GopherType {
+    Informational,
+    Gif,
+}
+
+impl GopherType {
+    fn to_type_string(&self) -> std::string::String {
+        match *self {
+            GopherType::Informational => "i".to_string(),
+            GopherType::Gif => "g".to_string(),
+        }
+    }
+}
+
+struct DirectoryEntry {
+    gType: GopherType,
+    description: std::string::String,
+    selector: std::string::String,
+    host: std::string::String,
+    port: u16,
+}
+
+//TODO: use libc::_SC_HOST_NAME_MAX
+//TODO: use gethostname
+//TODO: use .collect() and search for
+//.menuinfo entries
+//https://stackoverflow.com/questions/504810/how-do-i-find-the-current-machines-full-hostname-in-c-hostname-and-domain-info
+
+fn get_directory_listing(root: std::string::String, 
+                         request: std::string::String) -> Result<Vec<DirectoryEntry>, std::io::Error> { 
+    match std::fs::read_dir(root.clone()) {
+        Ok(rd) => {
+            let mut res: Vec<DirectoryEntry> = std::vec::Vec::new();
+            for possible_entry in rd {
+                match possible_entry {
+                    Ok(entry) => {
+                        let e = DirectoryEntry{gType: GopherType::Informational,
+                            description: "to be implemented".to_string(), //TODO
+                            selector: format!("{:?}", entry.path()),
+                            host: "localhost".to_string(), //TODO
+                            port: 7070, //TODO
+                        };
+                        res.push(e);
+                    }
+                    Err(e) => {}
+                }
+            }
+            Ok(res)
+        }
+        Err(e) => {
+              Err(e)
+        }
+    }
+}
+
+fn parse_input(input: std::string::String) -> Result<GopherMessage, &'static str> {
+    match input.as_str() {
+        "\r\n" => Ok(GopherMessage::ListDir("/".to_string())),
+        _ => {
+            if input.is_empty() {
+                return Err("Invalid request");
+            }
+            let selector_and_search: Vec<&str> = input.split("\t").collect();
+            if  selector_and_search.len() < 2{
+                return Ok(GopherMessage::ListDir(selector_and_search[0].to_string()));
+            }
+            let mut selector = std::string::String::new();
+            let mut search_result = std::vec::Vec::<Query>::new();
+            let mut out_queue = std::vec::Vec::<std::string::String>::new();
+            let mut op_queue = std::vec::Vec::<Query>::new();
+
+            for s in selector_and_search[1].split(" ").into_iter() {
+                match s {
+                    "and" => {}
+                    "or" => {}
+                    "not" => {}
+                    &_ => {}
+                }
+
+
+                //search.push(Query::SearchString(s.to_string()));
+                //teststr: foo not bar -> foo bar not
+                //foo and bar not baz -> foo bar and baz not
+                //not baz -> baz not
+                //and bar (should fail)
+                //foo and bar or boo and char -> foo bar and boo char and or
+                //foo and not bar or boo and char -> foo bar not and boo char and or
+            }
+            //TODO: iterate over second half to parse all logical operators
+            return Ok(GopherMessage::SearchDir(selector, search_result));
         }
     }
 }

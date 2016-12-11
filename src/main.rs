@@ -151,11 +151,13 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
             
             match get_uid_by_name(user.clone()) {
                 Ok(desired_uid) => {
-                    match switch_to_uid(desired_uid) {
-                        Ok(uid) => info!(llog, "user switch successfull"; "current user" => uid),
-                        Err(e) => {
-                            crit!(llog, e; "desired uid" => desired_uid, "current uid" => get_uid());
-                            return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
+                    if desired_uid != get_uid() {
+                        match switch_to_uid(desired_uid) {
+                            Ok(uid) => info!(llog, "user switch successfull"; "current user" => uid),
+                            Err(e) => {
+                                crit!(llog, e; "desired uid" => desired_uid, "current uid" => get_uid());
+                                return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
+                            }
                         }
                     }
                 }

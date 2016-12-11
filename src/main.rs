@@ -146,7 +146,7 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
                     user: std::string::String, rtlog: slog::Logger) -> Option<std::io::Error> {
     match std::net::TcpListener::bind(addr) {
         Ok(listener) => {
-        let llog = rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
+            let llog = rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
             info!(llog, "listening");
             
             match get_uid_by_name(user.clone()) {

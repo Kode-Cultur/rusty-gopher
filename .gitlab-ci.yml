@@ -7,10 +7,12 @@ cargo_build:
     script:
         - cargo build --features "clippy"      
         - ./target/debug/rusty-gopher --version
-    tags: rust
+    tags: 
+        - rust
     stage: build
 
 cargo_test:
     script: cargo test
-    tags: rust
+    tags: 
+        - rust
     stage: test

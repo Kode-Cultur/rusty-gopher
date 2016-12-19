@@ -326,7 +326,7 @@ fn get_host_name() -> std::string::String {
         }
     }
     let hostname = std::ffi::CString::new(resultvec).unwrap();
-/*
+
     let mut gai_results: Vec<std::ffi::CString> = std::vec::Vec::new();
 
     unsafe {
@@ -340,19 +340,19 @@ fn get_host_name() -> std::string::String {
             ai_canonname: 0 as *mut i8,
             ai_next: 0 as *mut libc::addrinfo,
         };
-        let gai_info: *mut *mut libc::addrinfo = 0 as *mut *mut libc::addrinfo;
+        let mut gai_test_ptr = 0xdeadfefe as *mut libc::addrinfo;
+        let gai_info: *mut *mut libc::addrinfo = &mut gai_test_ptr;
         let gai_service = std::ffi::CString::new("gopher").unwrap();
-        // TODO: rusty-gopher segfaults here.
-        println!("here");
         let hostnameptr = hostname.as_ptr();
         let gai_serviceptr = gai_service.as_ptr();
-        let res = libc::getaddrinfo(hostnameptr, gai_serviceptr, &hints, gai_info);
+        let res = libc::getaddrinfo(hostnameptr, gai_serviceptr, 0 as *const libc::addrinfo, gai_info);
         if res != 0 {
             panic!("{}", res);
         }
         let mut current = (*gai_info);
         while ((*current).ai_next != 0 as *mut libc::addrinfo) {
             println!("{:?} {:?}", current, (*current).ai_next);
+            // segfault occurs here
             gai_results.push(std::ffi::CString::from_raw((*current).ai_canonname)); //TODO do not use from_raw
             current = (*current).ai_next;
         }
@@ -361,7 +361,7 @@ fn get_host_name() -> std::string::String {
     for s in gai_results {
         println!("{:?}", s);
     }
-*/
+
     hostname.into_string().unwrap()
 }
 

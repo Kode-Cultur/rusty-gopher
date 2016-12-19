@@ -241,6 +241,9 @@ enum Query {
 enum GopherType {
     Informational,
     Gif,
+    Directory,
+    File,
+    BinaryFile,
 }
 
 impl GopherType {
@@ -248,6 +251,9 @@ impl GopherType {
         match *self {
             GopherType::Informational => "i".to_string(),
             GopherType::Gif => "g".to_string(),
+            GopherType::Directory => "1".to_string(),
+            GopherType::File => "0".to_string(),
+            GopherType::BinaryFile => "9".to_string(),
         }
     }
 }

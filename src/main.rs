@@ -351,7 +351,7 @@ fn get_host_name() -> std::string::String {
             hostname = temp.clone();
 
             // into_raw releases the ownership of the pointer as it is managed by C code
-            let foo = temp.into_raw();
+            temp.into_raw();
         }
         libc::freeaddrinfo(gai_info);
     }

@@ -271,6 +271,7 @@ fn get_directory_listing(root: std::string::String,
     match std::fs::read_dir(root + &request){
         Ok(rd) => {
             let mut res: Vec<DirectoryEntry> = std::vec::Vec::new();
+            let hostname = get_canonical_hostname();
             for possible_entry in rd {
                 match possible_entry {
                     Ok(entry) => {
@@ -278,7 +279,7 @@ fn get_directory_listing(root: std::string::String,
                             let e = DirectoryEntry{gType: GopherType::Directory,
                                 description: format!("{}", entry.file_name().into_string().unwrap()), //TODO
                                 selector: format!("{}", entry.path().to_str().expect("selector has to be valid utf8").to_string()),
-                                host: get_canonical_hostname(),
+                                host: hostname.clone(),
                                 port: 7070, //TODO
                             };
                             res.push(e);
@@ -287,14 +288,16 @@ fn get_directory_listing(root: std::string::String,
                                 gType: GopherType::BinaryFile,
                                 description: format!("{}", entry.file_name().into_string().unwrap()),
                                 selector: format!("{}", entry.path().to_str().expect("selector has to be valid utf8").to_string()),
-                                host: get_canonical_hostname(),
+                                host: hostname.clone(),
                                 port: 7070,
                             };
                             res.push(e);
 
                         }
                     }
-                    Err(e) => {}
+                    Err(e) => {
+                        return Err(e)
+                    }
                 }
             }
             Ok(res)

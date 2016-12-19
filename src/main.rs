@@ -266,33 +266,40 @@ struct DirectoryEntry {
     port: u16,
 }
 
-//TODO: use libc::_SC_HOST_NAME_MAX
-//TODO: use gethostname
-//TODO: use .collect() and search for
-//.menuinfo entries
-//https://stackoverflow.com/questions/504810/how-do-i-find-the-current-machines-full-hostname-in-c-hostname-and-domain-info
-
 fn get_directory_listing(root: std::string::String, 
                          request: std::string::String) -> Result<Vec<DirectoryEntry>, std::io::Error> { 
-    match std::fs::read_dir(root.clone()) {
+    match std::fs::read_dir(root + &request){
         Ok(rd) => {
             let mut res: Vec<DirectoryEntry> = std::vec::Vec::new();
             for possible_entry in rd {
                 match possible_entry {
                     Ok(entry) => {
-                        let e = DirectoryEntry{gType: GopherType::Informational,
-                            description: "to be implemented".to_string(), //TODO
-                            selector: format!("{:?}", entry.path()),
-                            host: "localhost".to_string(), //TODO
-                            port: 7070, //TODO
-                        };
-                        res.push(e);
+                        if entry.file_type().unwrap().is_dir() {
+                            let e = DirectoryEntry{gType: GopherType::Directory,
+                                description: format!("{}", entry.file_name().into_string().unwrap()), //TODO
+                                selector: format!("{}", entry.path().to_str().expect("selector has to be valid utf8").to_string()),
+                                host: get_host_name(),
+                                port: 7070, //TODO
+                            };
+                            res.push(e);
+                        } else if entry.file_type().unwrap().is_file() {
+                            let e = DirectoryEntry{
+                                gType: GopherType::BinaryFile,
+                                description: format!("{}", entry.file_name().into_string().unwrap()),
+                                selector: format!("{}", entry.path().to_str().expect("selector has to be valid utf8").to_string()),
+                                host: get_host_name(),
+                                port: 7070,
+                            };
+                            res.push(e);
+
+                        }
                     }
                     Err(e) => {}
                 }
             }
             Ok(res)
         }
+
         Err(e) => {
               Err(e)
         }

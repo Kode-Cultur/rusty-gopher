@@ -278,7 +278,7 @@ fn get_directory_listing(root: std::string::String,
                             let e = DirectoryEntry{gType: GopherType::Directory,
                                 description: format!("{}", entry.file_name().into_string().unwrap()), //TODO
                                 selector: format!("{}", entry.path().to_str().expect("selector has to be valid utf8").to_string()),
-                                host: get_host_name(),
+                                host: get_canonical_hostname(),
                                 port: 7070, //TODO
                             };
                             res.push(e);
@@ -287,7 +287,7 @@ fn get_directory_listing(root: std::string::String,
                                 gType: GopherType::BinaryFile,
                                 description: format!("{}", entry.file_name().into_string().unwrap()),
                                 selector: format!("{}", entry.path().to_str().expect("selector has to be valid utf8").to_string()),
-                                host: get_host_name(),
+                                host: get_canonical_hostname(),
                                 port: 7070,
                             };
                             res.push(e);
@@ -306,7 +306,7 @@ fn get_directory_listing(root: std::string::String,
     }
 }
 
-fn get_host_name() -> std::string::String {
+fn get_canonical_hostname() -> std::string::String {
     let hostnamelen: libc::c_long;
     unsafe {
         hostnamelen = libc::sysconf(libc::_SC_HOST_NAME_MAX) + 1; // +1 for the trailing \0

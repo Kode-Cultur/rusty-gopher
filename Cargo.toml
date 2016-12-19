@@ -15,3 +15,9 @@ clippy = {version = "*", optional = true}
 
 [features]
 default = []
+
+# TODO: delete replace section when
+# https://github.com/rust-lang/libc/pull/476
+# got merged.
+[replace]
+"libc:0.2.18" = { git = "https://github.com/glaxx/libc.git" }

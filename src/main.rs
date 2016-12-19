@@ -299,6 +299,65 @@ fn get_directory_listing(root: std::string::String,
     }
 }
 
+fn get_host_name() -> std::string::String {
+    let hostnamelen: libc::c_long;
+    unsafe {
+        hostnamelen = libc::sysconf(libc::_SC_HOST_NAME_MAX) + 1; // +1 for the trailing \0
+    }
+    let mut hostnamevec = vec![0 as u8; hostnamelen as usize];
+
+    unsafe {
+        libc::gethostname(hostnamevec.as_mut_ptr() as *mut i8, hostnamelen as usize);
+    }
+
+    let mut resultvec: Vec<u8> = std::vec::Vec::new();
+    for c in hostnamevec {
+        if c == 0 {
+            break;
+        } else {
+            resultvec.push(c);
+        }
+    }
+    let hostname = std::ffi::CString::new(resultvec).unwrap();
+/*
+    let mut gai_results: Vec<std::ffi::CString> = std::vec::Vec::new();
+
+    unsafe {
+        let hints = libc::addrinfo{
+            ai_family: libc::AF_UNSPEC,
+            ai_socktype: libc::SOCK_STREAM,
+            ai_flags: libc::AI_CANONNAME,
+            ai_addr: 0 as *mut libc::sockaddr,
+            ai_protocol: 0,
+            ai_addrlen: 0,
+            ai_canonname: 0 as *mut i8,
+            ai_next: 0 as *mut libc::addrinfo,
+        };
+        let gai_info: *mut *mut libc::addrinfo = 0 as *mut *mut libc::addrinfo;
+        let gai_service = std::ffi::CString::new("gopher").unwrap();
+        // TODO: rusty-gopher segfaults here.
+        println!("here");
+        let hostnameptr = hostname.as_ptr();
+        let gai_serviceptr = gai_service.as_ptr();
+        let res = libc::getaddrinfo(hostnameptr, gai_serviceptr, &hints, gai_info);
+        if res != 0 {
+            panic!("{}", res);
+        }
+        let mut current = (*gai_info);
+        while ((*current).ai_next != 0 as *mut libc::addrinfo) {
+            println!("{:?} {:?}", current, (*current).ai_next);
+            gai_results.push(std::ffi::CString::from_raw((*current).ai_canonname)); //TODO do not use from_raw
+            current = (*current).ai_next;
+        }
+    }
+
+    for s in gai_results {
+        println!("{:?}", s);
+    }
+*/
+    hostname.into_string().unwrap()
+}
+
 fn parse_input(input: std::string::String) -> Result<GopherMessage, &'static str> {
     match input.as_str() {
         "\r\n" => Ok(GopherMessage::ListDir("/".to_string())),

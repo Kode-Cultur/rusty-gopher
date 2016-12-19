@@ -325,9 +325,7 @@ fn get_host_name() -> std::string::String {
             resultvec.push(c);
         }
     }
-    let hostname = std::ffi::CString::new(resultvec).unwrap();
-
-    let mut gai_results: Vec<std::ffi::CString> = std::vec::Vec::new();
+    let mut hostname = std::ffi::CString::new(resultvec).unwrap();
 
     unsafe {
         let hints = libc::addrinfo{
@@ -340,28 +338,23 @@ fn get_host_name() -> std::string::String {
             ai_canonname: 0 as *mut i8,
             ai_next: 0 as *mut libc::addrinfo,
         };
-        let mut gai_test_ptr = 0xdeadfefe as *mut libc::addrinfo;
-        let gai_info: *mut *mut libc::addrinfo = &mut gai_test_ptr;
+        let mut gai_info: *mut libc::addrinfo = 0 as *mut libc::addrinfo;
         let gai_service = std::ffi::CString::new("gopher").unwrap();
-        let hostnameptr = hostname.as_ptr();
-        let gai_serviceptr = gai_service.as_ptr();
-        let res = libc::getaddrinfo(hostnameptr, gai_serviceptr, 0 as *const libc::addrinfo, gai_info);
+        let res = libc::getaddrinfo(hostname.as_ptr(), gai_service.as_ptr(), &hints, &mut gai_info);
         if res != 0 {
             panic!("{}", res);
         }
-        let mut current = (*gai_info);
-        while ((*current).ai_next != 0 as *mut libc::addrinfo) {
-            println!("{:?} {:?}", current, (*current).ai_next);
-            // segfault occurs here
-            gai_results.push(std::ffi::CString::from_raw((*current).ai_canonname)); //TODO do not use from_raw
-            current = (*current).ai_next;
+        if gai_info != 0 as *mut libc::addrinfo {
+            // from_raw takes ownership of the pointer
+            let temp = std::ffi::CString::from_raw((*gai_info).ai_canonname);
+
+            hostname = temp.clone();
+
+            // into_raw releases the ownership of the pointer as it is managed by C code
+            let foo = temp.into_raw();
         }
+        libc::freeaddrinfo(gai_info);
     }
-
-    for s in gai_results {
-        println!("{:?}", s);
-    }
-
     hostname.into_string().unwrap()
 }
 

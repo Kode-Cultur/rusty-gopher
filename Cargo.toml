@@ -2,6 +2,7 @@
 name = "rusty-gopher"
 version = "0.1.0"
 authors = ["Stefan Luecke <glaxx@glaxx.net>"]
+license = "AGPL-3.0"
 
 [dependencies]
 docopt = "0.6"

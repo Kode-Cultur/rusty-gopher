@@ -30,7 +30,10 @@ extern crate slog;
 extern crate slog_term;
 
 mod libcwrapper;
+mod gophermap;
+
 use libcwrapper::*;
+use gophermap::*;
 use slog::DrainExt;
 use std::io::Write;
 use std::str::FromStr;
@@ -249,42 +252,7 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
 
 enum GopherMessage {
     ListDir(std::string::String),
-    SearchDir(std::string::String, Vec<Query>),
-}
-
-enum Query {
-    And(Box<Query>, Box<Query>),
-    Or(Box<Query>, Box<Query>),
-    Not(Box<Query>),
-    SearchString(std::string::String),
-}
-
-enum GopherType {
-    Informational,
-    Gif,
-    Directory,
-    File,
-    BinaryFile,
-}
-
-impl GopherType {
-    fn to_type_string(&self) -> std::string::String {
-        match *self {
-            GopherType::Informational => "i".to_string(),
-            GopherType::Gif => "g".to_string(),
-            GopherType::Directory => "1".to_string(),
-            GopherType::File => "0".to_string(),
-            GopherType::BinaryFile => "9".to_string(),
-        }
-    }
-}
-
-struct DirectoryEntry {
-    gType: GopherType,
-    description: std::string::String,
-    selector: std::string::String,
-    host: std::string::String,
-    port: u16,
+    SearchDir(std::string::String, std::string::String),
 }
 
 fn get_directory_listing(root: std::string::String, 

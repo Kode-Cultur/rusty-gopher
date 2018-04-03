@@ -311,29 +311,12 @@ fn parse_input(input: std::string::String) -> Result<GopherMessage, &'static str
                 return Ok(GopherMessage::ListDir(selector_and_search[0].to_string()));
             }
             let mut selector = std::string::String::new();
-            let mut search_result = std::vec::Vec::<Query>::new();
-            let mut out_queue = std::vec::Vec::<std::string::String>::new();
-            let mut op_queue = std::vec::Vec::<Query>::new();
 
-            for s in selector_and_search[1].split(" ").into_iter() {
-                match s {
-                    "and" => {}
-                    "or" => {}
-                    "not" => {}
-                    &_ => {}
-                }
+            //named!(parser,);
 
-
-                //search.push(Query::SearchString(s.to_string()));
-                //teststr: foo not bar -> foo bar not
-                //foo and bar not baz -> foo bar and baz not
-                //not baz -> baz not
-                //and bar (should fail)
-                //foo and bar or boo and char -> foo bar and boo char and or
-                //foo and not bar or boo and char -> foo bar not and boo char and or
-            }
+               //foo and bar or boo and char -> foo bar and boo char and or
             //TODO: iterate over second half to parse all logical operators
-            return Ok(GopherMessage::SearchDir(selector, search_result));
+            Ok(GopherMessage::ListDir(selector))
         }
     }
 }

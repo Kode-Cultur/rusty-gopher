@@ -67,8 +67,13 @@ const DEFAULT_MASTER_CONFIG: &'static str = "/etc/rusty_gopher.toml";
 /// This struct contains all different CLI arguments
 #[derive(Serialize, Deserialize)]
 struct Args {
+    /// Is true when the command serve was used.
+    /// Indicates that we should serve our content to the internet.
     cmd_serve: bool,
+    /// Is true when the genconfig command was used. Indicates that we should
+    /// generate a fresh config.
     cmd_genconfig: bool,
+    /// Optional: Path to user supplied config file.
     arg_config: Option<String>,
 }
 

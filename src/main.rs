@@ -227,7 +227,7 @@ fn listen_and_serve(
                                                     for l in listing {
                                                         c.write_fmt(format_args!(
                                                             "{}{}\t{}\t{}\t{}\r\n",
-                                                            l.gType.to_type_string(),
+                                                            l.gtype.to_type_string(),
                                                             l.description,
                                                             l.selector,
                                                             l.host,
@@ -280,7 +280,7 @@ fn get_directory_listing(
                     Ok(entry) => {
                         if entry.file_type().unwrap().is_dir() {
                             let e = DirectoryEntry {
-                                gType: GopherType::Directory,
+                                gtype: GopherType::Directory,
                                 description: format!(
                                     "{}",
                                     entry.file_name().into_string().unwrap()
@@ -299,7 +299,7 @@ fn get_directory_listing(
                             res.push(e);
                         } else if entry.file_type().unwrap().is_file() {
                             let e = DirectoryEntry {
-                                gType: GopherType::BinaryFile,
+                                gtype: GopherType::BinaryFile,
                                 description: format!(
                                     "{}",
                                     entry.file_name().into_string().unwrap()

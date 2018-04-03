@@ -29,15 +29,15 @@ pub enum GopherType {
 }
 
 impl GopherType {
-    pub fn to_type_string(&self) -> std::string::String {
+    pub fn to_type_string(&self) -> String {
         match *self {
-            GopherType::Informational => "i".to_string(),
-            GopherType::Gif => "g".to_string(),
-            GopherType::Directory => "1".to_string(),
-            GopherType::File => "0".to_string(),
-            GopherType::BinaryFile => "9".to_string(),
-            GopherType::Error => "3".to_string(),
-        }
+            GopherType::Informational => "i",
+            GopherType::Gif => "g",
+            GopherType::Directory => "1",
+            GopherType::File => "0",
+            GopherType::BinaryFile => "9",
+            GopherType::Error => "3",
+        }.to_string()
     }
 
     pub fn from_str(s: &str) -> GopherType {
@@ -74,10 +74,10 @@ impl std::fmt::Display for GopherType {
 }
 
 pub struct DirectoryEntry {
-    pub gType: GopherType,
-    pub description: std::string::String,
-    pub selector: std::string::String,
-    pub host: std::string::String,
+    pub gtype: GopherType,
+    pub description: String,
+    pub selector: String,
+    pub host: String,
     pub port: u16,
 }
 
@@ -86,7 +86,7 @@ impl std::fmt::Display for DirectoryEntry {
         write!(
             f,
             "{}{}\t{}\t{}\t{}\r\n",
-            self.gType, self.description, self.selector, self.host, self.port
+            self.gtype, self.description, self.selector, self.host, self.port
         )
     }
 }
@@ -94,7 +94,7 @@ impl std::fmt::Display for DirectoryEntry {
 impl DirectoryEntry {
     pub fn new() -> DirectoryEntry {
         DirectoryEntry {
-            gType: GopherType::Error,
+            gtype: GopherType::Error,
             description: "".to_string(),
             selector: "".to_string(),
             host: "".to_string(),
@@ -104,7 +104,7 @@ impl DirectoryEntry {
 
     pub fn from_dir_entry(
         e: std::fs::DirEntry,
-        host: std::string::String,
+        host: String,
         port: u16,
     ) -> DirectoryEntry {
         let mut ft = GopherType::Error;
@@ -121,7 +121,7 @@ impl DirectoryEntry {
         }
 
         DirectoryEntry {
-            gType: ft,
+            gtype: ft,
             description: format!("{}", e.file_name().into_string().unwrap_or("".to_string())),
             selector: format!("{}", e.path().to_str().unwrap_or("").to_string()),
             host: host,
@@ -135,20 +135,16 @@ pub struct Gophermap {
 }
 
 impl Gophermap {
-    pub fn from_str(st: &str) -> Result<Gophermap, &'static str> {
-        Err("not yet implemented")
-    }
-
-    pub fn from_string(string: std::string::String) -> Result<Gophermap, &'static str> {
+    pub fn from_string<S: Into<String>>(st: S) -> Result<Gophermap, &'static str> {
         Err("not yet implemented")
     }
 
     pub fn from_directory(
         path: &std::path::Path,
-        host: std::string::String,
+        host: String,
         port: u16,
     ) -> Result<Gophermap, std::io::Error> {
-        let rd = try!(std::fs::read_dir(path));
+        let rd = std::fs::read_dir(path)?;
         let mut res = Gophermap::new();
         for p_entry in rd {
             if let Ok(entry) = p_entry {
@@ -173,7 +169,7 @@ impl Gophermap {
     /// ```
     pub fn new() -> Gophermap {
         Gophermap {
-            entries: std::vec::Vec::new(),
+            entries: Vec::new(),
         }
     }
 }

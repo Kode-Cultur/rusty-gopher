@@ -5,15 +5,15 @@ authors = ["Stefan Luecke <glaxx@glaxx.net>"]
 license = "AGPL-3.0"
 
 [dependencies]
-docopt = "0.6"
-docopt_macros = "0.6"
-rustc-serialize = "0.3"
-rust-ini = "0.9"
-# TODO: Replace git with libc:0.2.19 as soon as it is
-# released.
-libc = { git = "https://github.com/rust-lang/libc.git" }
-slog = "1.3"
-slog-term = "1.3"
+docopt = "0.8"
+serde = "1.0"
+serde_derive = "1.0"
+rust-ini = "0.10"
+libc = "0.2"
+slog = "2.2"
+slog-term = "2.3"
+nom = "3.2"
+
 clippy = {version = "*", optional = true}
 
 [features]

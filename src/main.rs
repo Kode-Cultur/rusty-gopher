@@ -17,39 +17,42 @@
  *    Authors: Stefan Luecke <glaxx@glaxx.net>
  */
 
-#![feature(plugin)]
-#![plugin(docopt_macros)]
 #![cfg_attr(feature="clippy", plugin(clippy))]
 
 extern crate docopt;
-extern crate rustc_serialize;
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
 extern crate ini;
 extern crate libc;
 #[macro_use]
 extern crate slog;
 extern crate slog_term;
+#[macro_use]
+extern crate nom;
 
-mod libcwrapper;
-mod gophermap;
+pub mod libcwrapper;
+pub mod gophermap;
 
+use docopt::Docopt;
 use libcwrapper::*;
 use gophermap::*;
-use slog::DrainExt;
 use std::io::Write;
 use std::str::FromStr;
 use std::io::BufRead;
+use std::path::{ Path, PathBuf };
 
-docopt!(Args, "
+const USAGE: &'static str = "
 Usage:
     rusty-gopher  serve [<config>]
-    rusty-gopher  genconfig [<path>]
+    rusty-gopher  genconfig [<config>]
     rusty-gopher  -h | --help
     rusty-gopher  --version
 
 Options:
     -h --help   Show this screen.
     --version   Show version.
-");
+";
 
 const DEFAULT_MASTER_CONFIG: &'static str = "/etc/rusty_gopher.cfg";
 
@@ -57,60 +60,54 @@ const DEFAULT_ROOT_DIR: &'static str = "/var/gopher";
 const DEFAULT_USER: &'static str = "gopher";
 const DEFAULT_LISTEN_ADDRESS: &'static str = "0.0.0.0:70";
 
+#[derive(Serialize, Deserialize)]
+struct Args {
+    cmd_serve: bool,
+    cmd_genconfig: bool,
+    arg_config: Option<String>,
+}
+
+fn write_default_configfile(path: &String) {
+    let mut conf = ini::Ini::new();
+    conf.with_section(Some("General"))
+        .set("rootdir", DEFAULT_ROOT_DIR)
+        .set("user", DEFAULT_USER)
+        .set("listento", DEFAULT_LISTEN_ADDRESS);
+
+    match conf.write_to_file(path) {
+        Ok(_) => { 
+            println!("Configuration file written.\nPlease check {:?}",
+                     path);
+            std::process::exit(libc::EXIT_SUCCESS);
+        }
+        Err(e) => {
+            println!("Error writing configuration file to: {:?}\nError: {}",
+                     path, e);
+            std::process::exit(libc::EXIT_FAILURE);
+        }
+    }
+}
+
 fn main() {
-    let args: Args = Args::docopt().decode().unwrap_or_else(|e| e.exit());
-    
-    if args.flag_version {
-        println!("{} version: {}", env!("CARGO_PKG_NAME"), env!("CARGO_PKG_VERSION"));
-        std::process::exit(libc::EXIT_SUCCESS);
-    }
-    
+    let args: Args = Docopt::new(USAGE)
+        .and_then(|d| d.deserialize())
+        .unwrap_or_else(|e| e.exit());
+
+    let cfgpath = args.arg_config.unwrap_or(DEFAULT_MASTER_CONFIG.to_string());
+
     if args.cmd_genconfig {
-        let mut conf = ini::Ini::new();
-        conf.with_section(Some("General")).
-            set("rootdir", DEFAULT_ROOT_DIR).
-            set("user", DEFAULT_USER).
-            set("listento", DEFAULT_LISTEN_ADDRESS);
-
-            if args.arg_path.is_empty() {
-                match conf.write_to_file(DEFAULT_MASTER_CONFIG) {
-                    Ok(_) => println!("Configuration file written.\nPlease check {}", DEFAULT_MASTER_CONFIG),
-                    Err(e) => {
-                        println!("Error writing configuration file to: {}\nError: {}", DEFAULT_MASTER_CONFIG, e);
-                        std::process::exit(libc::EXIT_FAILURE);
-                    }
-                }
-            } else {
-                match conf.write_to_file(&args.arg_path) {
-                    Ok(_) => println!("Configuration file written.\nPlease check {}", args.arg_path),
-                    Err(e) => {
-                        println!("Error writing configuration file to: {}\nError: {}", args.arg_path, e);
-                        std::process::exit(libc::EXIT_FAILURE);
-                    }
-                }
-            }
-        std::process::exit(libc::EXIT_SUCCESS);
+        write_default_configfile(&cfgpath);
     }
 
-    let config: ini::Ini; 
-    if args.arg_config.is_empty() {
-        match ini::Ini::load_from_file(DEFAULT_MASTER_CONFIG) { 
-            Ok(f) => config = f,
-            Err(e) => {
-                println!("Error opening configuration file at: {}\nError: {}", DEFAULT_MASTER_CONFIG, e);
-                std::process::exit(libc::EXIT_FAILURE);
-            }
-        }
-    } else {
-        match ini::Ini::load_from_file(&args.arg_config) { 
-            Ok(f) => config = f,
-            Err(e) => {
-                println!("Error opening configuration file at: {}\nError: {}", args.arg_config, e);
-                std::process::exit(libc::EXIT_FAILURE);
-            }
+    let config: ini::Ini;
+    match ini::Ini::load_from_file(&cfgpath) { 
+        Ok(f) => config = f,
+        Err(e) => {
+            println!("Error opening configuration file at: {}\nError: {}",
+                     cfgpath, e);
+            std::process::exit(libc::EXIT_FAILURE);
         }
     }
-
     let generalconfig = config.section(Some("General"));
     let addr: std::net::SocketAddr;
     let mut user = std::string::String::new();
@@ -154,10 +151,14 @@ fn main() {
             std::process::exit(libc::EXIT_FAILURE);
         }
     }
-    
+
+    use slog::Drain;
+
+    let rtlog_decorator = slog_term::PlainSyncDecorator::new(std::io::stdout());
     let rtlog = slog::Logger::root(
-        slog_term::streamer().full().build().
-        fuse(), o!(env!("CARGO_PKG_NAME") => env!("CARGO_PKG_VERSION")));
+        slog_term::FullFormat::new(rtlog_decorator)
+        .build()
+        .fuse(), o!(env!("CARGO_PKG_NAME") => env!("CARGO_PKG_VERSION")));
 
     match listen_and_serve(addr, root, user, rtlog) {
         Some(_) => std::process::exit(libc::EXIT_FAILURE),
@@ -179,14 +180,14 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
                         match switch_to_uid(desired_uid) {
                             Ok(uid) => info!(llog, "user switch successfull"; "current user" => uid),
                             Err(e) => {
-                                crit!(llog, e; "desired uid" => desired_uid, "current uid" => get_uid());
+                                crit!(llog, "Error: {}", e; "desired uid" => desired_uid, "current uid" => get_uid());
                                 return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
                             }
                         }
                     }
                 }
                 Err(e) => {
-                    crit!(llog, e; "desired user" => user);
+                    crit!(llog, "Error: {}", e; "desired user" => user);
                     return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
                 }
             }
@@ -207,7 +208,7 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
                                     Ok(request) => {
                                         match request {
                                             GopherMessage::ListDir(selector) => {
-                                                info!(clog, "got directory list request"; "selector" => selector);
+                                                info!(clog, "got directory list request"; "selector" => &selector);
                                                 match get_directory_listing(root.clone(), selector) {
                                                     Ok(listing) => {
                                                         for l in listing {
@@ -220,7 +221,7 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
 
                                                         }
                                                     }
-                                                    Err(e) => error!(clog, e),
+                                                    Err(e) => error!(clog, "Error: {}", e),
                                                 }
                                             }
                                             GopherMessage::SearchDir(selector, search_string) => {
@@ -230,7 +231,7 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
 
                                         }
                                     }
-                                    Err(e) => error!(clog, e),
+                                    Err(e) => error!(clog, "Error: {}", e),
                                 }
                             }
                             Err(e) => error!(clog, "error reading input: {}", e),

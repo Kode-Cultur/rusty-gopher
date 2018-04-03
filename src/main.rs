@@ -41,6 +41,7 @@ use std::io::BufRead;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+use std::string::String;
 
 const USAGE: &'static str = "
 Usage:
@@ -113,8 +114,8 @@ fn main() {
     }
     let generalconfig = config.section(Some("General"));
     let addr: std::net::SocketAddr;
-    let mut user = std::string::String::new();
-    let mut root = std::string::String::new();
+    let mut user = String::new();
+    let mut root = String::new();
 
     match generalconfig {
         Some(g) => {
@@ -172,8 +173,8 @@ fn main() {
 
 fn listen_and_serve(
     addr: std::net::SocketAddr,
-    root: std::string::String,
-    user: std::string::String,
+    root: String,
+    user: String,
     rtlog: slog::Logger,
 ) -> Option<std::io::Error> {
     match std::net::TcpListener::bind(addr) {
@@ -212,7 +213,7 @@ fn listen_and_serve(
                         info!(clog, "new connection received");
 
                         let mut reader = std::io::BufReader::new(c.try_clone().unwrap());
-                        let mut buf = std::string::String::new();
+                        let mut buf = String::new();
                         match reader.read_line(&mut buf) {
                             Ok(input) => {
                                 debug!(clog, "got input"; "bytes read" => input);
@@ -262,13 +263,13 @@ fn listen_and_serve(
 }
 
 enum GopherMessage {
-    ListDir(std::string::String),
-    SearchDir(std::string::String, std::string::String),
+    ListDir(String),
+    SearchDir(String, String),
 }
 
 fn get_directory_listing(
-    root: std::string::String,
-    request: std::string::String,
+    root: String,
+    request: String,
 ) -> Result<Vec<DirectoryEntry>, std::io::Error> {
     match std::fs::read_dir(root + &request) {
         Ok(rd) => {
@@ -327,7 +328,7 @@ fn get_directory_listing(
     }
 }
 
-fn parse_input(input: std::string::String) -> Result<GopherMessage, &'static str> {
+fn parse_input(input: String) -> Result<GopherMessage, &'static str> {
     match input.as_str() {
         "\r\n" => Ok(GopherMessage::ListDir("/".to_string())),
         _ => {
@@ -338,7 +339,7 @@ fn parse_input(input: std::string::String) -> Result<GopherMessage, &'static str
             if selector_and_search.len() < 2 {
                 return Ok(GopherMessage::ListDir(selector_and_search[0].to_string()));
             }
-            let mut selector = std::string::String::new();
+            let mut selector = String::new();
 
             //named!(parser,);
 

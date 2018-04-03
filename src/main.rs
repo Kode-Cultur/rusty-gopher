@@ -191,7 +191,9 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
                     return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
                 }
             }
-            
+           
+            // Sorry for the mess below.
+            // I'll fix it someday.
             for client in listener.incoming() {
                 match client {
                     Ok(mut c) => {

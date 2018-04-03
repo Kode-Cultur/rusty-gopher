@@ -1,6 +1,8 @@
 # rusty-gopher
 rusty-gopher is a gopher daemon written in rust.
 
+Warning, this is WIP code. It may not work at all.
+
 ## Building
 
 As of now (2016-12-22) you need rust-nightly to build rusty-gopher. The recommended way to install/manage your rust installation is [rustup](https://www.rustup.rs/).

@@ -10,7 +10,7 @@ As of now (2016-12-22) you need rust-nightly to build rusty-gopher. The recommen
 rusty-gopher hasn't been published on [crates.io](https://crates.io) yet, so you have to manually clone it.
 
 ```sh
-git clone https://gitlab.glaxx.net/glaxx/rusty-gopher.git
+git clone https://github.com/Kode-Cultur/rusty-gopher.git
 cd rusty-gopher
 cargo build --release
 ```

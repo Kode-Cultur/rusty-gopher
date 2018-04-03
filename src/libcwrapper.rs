@@ -82,7 +82,7 @@ pub fn get_canonical_hostname() -> std::string::String {
     let mut hostname = std::ffi::CString::new(resultvec).unwrap();
 
     unsafe {
-        let hints = libc::addrinfo{
+        let hints = libc::addrinfo {
             ai_family: libc::AF_UNSPEC,
             ai_socktype: libc::SOCK_STREAM,
             ai_flags: libc::AI_CANONNAME,
@@ -94,7 +94,12 @@ pub fn get_canonical_hostname() -> std::string::String {
         };
         let mut gai_info: *mut libc::addrinfo = 0 as *mut libc::addrinfo;
         let gai_service = std::ffi::CString::new("gopher").unwrap();
-        let res = libc::getaddrinfo(hostname.as_ptr(), gai_service.as_ptr(), &hints, &mut gai_info);
+        let res = libc::getaddrinfo(
+            hostname.as_ptr(),
+            gai_service.as_ptr(),
+            &hints,
+            &mut gai_info,
+        );
         if res != 0 {
             panic!("{}", res);
         }
@@ -111,5 +116,3 @@ pub fn get_canonical_hostname() -> std::string::String {
     }
     hostname.into_string().unwrap()
 }
-
-

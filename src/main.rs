@@ -17,7 +17,7 @@
  *    Authors: Stefan Luecke <glaxx@glaxx.net>
  */
 
-#![cfg_attr(feature="clippy", plugin(clippy))]
+#![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate docopt;
 extern crate serde;
@@ -31,16 +31,16 @@ extern crate slog_term;
 #[macro_use]
 extern crate nom;
 
-pub mod libcwrapper;
 pub mod gophermap;
+pub mod libcwrapper;
 
 use docopt::Docopt;
-use libcwrapper::*;
 use gophermap::*;
-use std::io::Write;
-use std::str::FromStr;
+use libcwrapper::*;
 use std::io::BufRead;
-use std::path::{ Path, PathBuf };
+use std::io::Write;
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
 
 const USAGE: &'static str = "
 Usage:
@@ -75,14 +75,15 @@ fn write_default_configfile(path: &String) {
         .set("listento", DEFAULT_LISTEN_ADDRESS);
 
     match conf.write_to_file(path) {
-        Ok(_) => { 
-            println!("Configuration file written.\nPlease check {:?}",
-                     path);
+        Ok(_) => {
+            println!("Configuration file written.\nPlease check {:?}", path);
             std::process::exit(libc::EXIT_SUCCESS);
         }
         Err(e) => {
-            println!("Error writing configuration file to: {:?}\nError: {}",
-                     path, e);
+            println!(
+                "Error writing configuration file to: {:?}\nError: {}",
+                path, e
+            );
             std::process::exit(libc::EXIT_FAILURE);
         }
     }
@@ -100,11 +101,13 @@ fn main() {
     }
 
     let config: ini::Ini;
-    match ini::Ini::load_from_file(&cfgpath) { 
+    match ini::Ini::load_from_file(&cfgpath) {
         Ok(f) => config = f,
         Err(e) => {
-            println!("Error opening configuration file at: {}\nError: {}",
-                     cfgpath, e);
+            println!(
+                "Error opening configuration file at: {}\nError: {}",
+                cfgpath, e
+            );
             std::process::exit(libc::EXIT_FAILURE);
         }
     }
@@ -116,15 +119,13 @@ fn main() {
     match generalconfig {
         Some(g) => {
             match g.get("listento") {
-                Some(a) => {
-                    match std::net::SocketAddr::from_str(a) {
-                        Ok(ad) => addr = ad,
-                        Err(e) => {
-                            println!("Error reading \"listento\" value.\nPlease check your config file\nError: {}", e);
-                            std::process::exit(libc::EXIT_FAILURE);
-                        }
+                Some(a) => match std::net::SocketAddr::from_str(a) {
+                    Ok(ad) => addr = ad,
+                    Err(e) => {
+                        println!("Error reading \"listento\" value.\nPlease check your config file\nError: {}", e);
+                        std::process::exit(libc::EXIT_FAILURE);
                     }
-                }
+                },
                 None => {
                     println!("Error reading \"listento\" value.\nPlease check your config file.");
                     std::process::exit(libc::EXIT_FAILURE);
@@ -146,8 +147,11 @@ fn main() {
             }
         }
         None => {
-            println!("Error reading configuration values.\nYour config file seems corrupted\n/
-            You can generate a new one by typing: {} genconfig", env!("CARGO_PKG_NAME"));
+            println!(
+                "Error reading configuration values.\nYour config file seems corrupted\n/
+            You can generate a new one by typing: {} genconfig",
+                env!("CARGO_PKG_NAME")
+            );
             std::process::exit(libc::EXIT_FAILURE);
         }
     }
@@ -156,29 +160,35 @@ fn main() {
 
     let rtlog_decorator = slog_term::PlainSyncDecorator::new(std::io::stdout());
     let rtlog = slog::Logger::root(
-        slog_term::FullFormat::new(rtlog_decorator)
-        .build()
-        .fuse(), o!(env!("CARGO_PKG_NAME") => env!("CARGO_PKG_VERSION")));
+        slog_term::FullFormat::new(rtlog_decorator).build().fuse(),
+        o!(env!("CARGO_PKG_NAME") => env!("CARGO_PKG_VERSION")),
+    );
 
     match listen_and_serve(addr, root, user, rtlog) {
         Some(_) => std::process::exit(libc::EXIT_FAILURE),
         None => std::process::exit(libc::EXIT_SUCCESS),
     }
-
 }
 
-fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String, 
-                    user: std::string::String, rtlog: slog::Logger) -> Option<std::io::Error> {
+fn listen_and_serve(
+    addr: std::net::SocketAddr,
+    root: std::string::String,
+    user: std::string::String,
+    rtlog: slog::Logger,
+) -> Option<std::io::Error> {
     match std::net::TcpListener::bind(addr) {
         Ok(listener) => {
-            let llog = rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
+            let llog =
+                rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
             info!(llog, "listening");
-            
+
             match get_uid_by_name(user.clone()) {
                 Ok(desired_uid) => {
                     if desired_uid != get_uid() {
                         match switch_to_uid(desired_uid) {
-                            Ok(uid) => info!(llog, "user switch successfull"; "current user" => uid),
+                            Ok(uid) => {
+                                info!(llog, "user switch successfull"; "current user" => uid)
+                            }
                             Err(e) => {
                                 crit!(llog, "Error: {}", e; "desired uid" => desired_uid, "current uid" => get_uid());
                                 return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
@@ -191,13 +201,14 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
                     return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
                 }
             }
-           
+
             // Sorry for the mess below.
             // I'll fix it someday.
             for client in listener.incoming() {
                 match client {
                     Ok(mut c) => {
-                        let clog = llog.new(o!("peer address" => format!("{}", c.peer_addr().unwrap())));
+                        let clog =
+                            llog.new(o!("peer address" => format!("{}", c.peer_addr().unwrap())));
                         info!(clog, "new connection received");
 
                         let mut reader = std::io::BufReader::new(c.try_clone().unwrap());
@@ -207,32 +218,29 @@ fn listen_and_serve(addr: std::net::SocketAddr, root: std::string::String,
                                 debug!(clog, "got input"; "bytes read" => input);
 
                                 match parse_input(buf) {
-                                    Ok(request) => {
-                                        match request {
-                                            GopherMessage::ListDir(selector) => {
-                                                info!(clog, "got directory list request"; "selector" => &selector);
-                                                match get_directory_listing(root.clone(), selector) {
-                                                    Ok(listing) => {
-                                                        for l in listing {
-                                                            c.write_fmt(format_args!("{}{}\t{}\t{}\t{}\r\n",
-                                                                                 l.gType.to_type_string(),
-                                                                                 l.description,
-                                                                                 l.selector,
-                                                                                 l.host,
-                                                                                 l.port));
-
-                                                        }
+                                    Ok(request) => match request {
+                                        GopherMessage::ListDir(selector) => {
+                                            info!(clog, "got directory list request"; "selector" => &selector);
+                                            match get_directory_listing(root.clone(), selector) {
+                                                Ok(listing) => {
+                                                    for l in listing {
+                                                        c.write_fmt(format_args!(
+                                                            "{}{}\t{}\t{}\t{}\r\n",
+                                                            l.gType.to_type_string(),
+                                                            l.description,
+                                                            l.selector,
+                                                            l.host,
+                                                            l.port
+                                                        ));
                                                     }
-                                                    Err(e) => error!(clog, "Error: {}", e),
                                                 }
+                                                Err(e) => error!(clog, "Error: {}", e),
                                             }
-                                            GopherMessage::SearchDir(selector, search_string) => {
-                                                debug!(clog, "got search request"; "selector" => selector);
-
-                                            }
-
                                         }
-                                    }
+                                        GopherMessage::SearchDir(selector, search_string) => {
+                                            debug!(clog, "got search request"; "selector" => selector);
+                                        }
+                                    },
                                     Err(e) => error!(clog, "Error: {}", e),
                                 }
                             }
@@ -258,9 +266,11 @@ enum GopherMessage {
     SearchDir(std::string::String, std::string::String),
 }
 
-fn get_directory_listing(root: std::string::String, 
-                         request: std::string::String) -> Result<Vec<DirectoryEntry>, std::io::Error> { 
-    match std::fs::read_dir(root + &request){
+fn get_directory_listing(
+    root: std::string::String,
+    request: std::string::String,
+) -> Result<Vec<DirectoryEntry>, std::io::Error> {
+    match std::fs::read_dir(root + &request) {
         Ok(rd) => {
             let mut res: Vec<DirectoryEntry> = std::vec::Vec::new();
             let hostname = get_canonical_hostname();
@@ -268,36 +278,52 @@ fn get_directory_listing(root: std::string::String,
                 match possible_entry {
                     Ok(entry) => {
                         if entry.file_type().unwrap().is_dir() {
-                            let e = DirectoryEntry{gType: GopherType::Directory,
-                                description: format!("{}", entry.file_name().into_string().unwrap()), //TODO
-                                selector: format!("{}", entry.path().to_str().expect("selector has to be valid utf8").to_string()),
+                            let e = DirectoryEntry {
+                                gType: GopherType::Directory,
+                                description: format!(
+                                    "{}",
+                                    entry.file_name().into_string().unwrap()
+                                ), //TODO
+                                selector: format!(
+                                    "{}",
+                                    entry
+                                        .path()
+                                        .to_str()
+                                        .expect("selector has to be valid utf8")
+                                        .to_string()
+                                ),
                                 host: hostname.clone(),
                                 port: 7070, //TODO
                             };
                             res.push(e);
                         } else if entry.file_type().unwrap().is_file() {
-                            let e = DirectoryEntry{
+                            let e = DirectoryEntry {
                                 gType: GopherType::BinaryFile,
-                                description: format!("{}", entry.file_name().into_string().unwrap()),
-                                selector: format!("{}", entry.path().to_str().expect("selector has to be valid utf8").to_string()),
+                                description: format!(
+                                    "{}",
+                                    entry.file_name().into_string().unwrap()
+                                ),
+                                selector: format!(
+                                    "{}",
+                                    entry
+                                        .path()
+                                        .to_str()
+                                        .expect("selector has to be valid utf8")
+                                        .to_string()
+                                ),
                                 host: hostname.clone(),
                                 port: 7070,
                             };
                             res.push(e);
-
                         }
                     }
-                    Err(e) => {
-                        return Err(e)
-                    }
+                    Err(e) => return Err(e),
                 }
             }
             Ok(res)
         }
 
-        Err(e) => {
-              Err(e)
-        }
+        Err(e) => Err(e),
     }
 }
 
@@ -309,14 +335,14 @@ fn parse_input(input: std::string::String) -> Result<GopherMessage, &'static str
                 return Err("Invalid request");
             }
             let selector_and_search: Vec<&str> = input.split("\t").collect();
-            if  selector_and_search.len() < 2{
+            if selector_and_search.len() < 2 {
                 return Ok(GopherMessage::ListDir(selector_and_search[0].to_string()));
             }
             let mut selector = std::string::String::new();
 
             //named!(parser,);
 
-               //foo and bar or boo and char -> foo bar and boo char and or
+            //foo and bar or boo and char -> foo bar and boo char and or
             //TODO: iterate over second half to parse all logical operators
             Ok(GopherMessage::ListDir(selector))
         }

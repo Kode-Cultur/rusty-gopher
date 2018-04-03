@@ -51,7 +51,7 @@ impl GopherType {
         }
     }
 
-    pub fn from_file_extension(s: &str) -> GopherType { 
+    pub fn from_file_extension(s: &str) -> GopherType {
         match s {
             "txt" | "md" => GopherType::File,
             "gif" => GopherType::Gif,
@@ -68,7 +68,7 @@ impl std::fmt::Display for GopherType {
             GopherType::Directory => write!(f, "1"),
             GopherType::File => write!(f, "0"),
             GopherType::BinaryFile => write!(f, "9"),
-            GopherType::Error =>  write!(f, "3"),
+            GopherType::Error => write!(f, "3"),
         }
     }
 }
@@ -83,18 +83,17 @@ pub struct DirectoryEntry {
 
 impl std::fmt::Display for DirectoryEntry {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{}{}\t{}\t{}\t{}\r\n",
-               self.gType,
-               self.description,
-               self.selector,
-               self.host,
-               self.port)
+        write!(
+            f,
+            "{}{}\t{}\t{}\t{}\r\n",
+            self.gType, self.description, self.selector, self.host, self.port
+        )
     }
 }
 
 impl DirectoryEntry {
     pub fn new() -> DirectoryEntry {
-        DirectoryEntry{
+        DirectoryEntry {
             gType: GopherType::Error,
             description: "".to_string(),
             selector: "".to_string(),
@@ -103,9 +102,11 @@ impl DirectoryEntry {
         }
     }
 
-    pub fn from_dir_entry(e: std::fs::DirEntry,
-                          host: std::string::String,
-                          port: u16) -> DirectoryEntry {
+    pub fn from_dir_entry(
+        e: std::fs::DirEntry,
+        host: std::string::String,
+        port: u16,
+    ) -> DirectoryEntry {
         let mut ft = GopherType::Error;
         if let Ok(ftype) = e.file_type() {
             if ftype.is_dir() {
@@ -119,11 +120,11 @@ impl DirectoryEntry {
             }
         }
 
-        DirectoryEntry{
+        DirectoryEntry {
             gType: ft,
             description: format!("{}", e.file_name().into_string().unwrap_or("".to_string())),
             selector: format!("{}", e.path().to_str().unwrap_or("").to_string()),
-            host: host, 
+            host: host,
             port: port,
         }
     }
@@ -142,9 +143,11 @@ impl Gophermap {
         Err("not yet implemented")
     }
 
-    pub fn from_directory(path: &std::path::Path,
-                          host: std::string::String,
-                          port: u16) -> Result<Gophermap, std::io::Error> {
+    pub fn from_directory(
+        path: &std::path::Path,
+        host: std::string::String,
+        port: u16,
+    ) -> Result<Gophermap, std::io::Error> {
         let rd = try!(std::fs::read_dir(path));
         let mut res = Gophermap::new();
         for p_entry in rd {
@@ -162,9 +165,9 @@ impl Gophermap {
     }
 
     /// Constructs a new `Gophermap`.
-    /// 
+    ///
     /// # Examples
-    /// 
+    ///
     /// ```
     /// let m = Gophermap::new();
     /// ```
@@ -175,16 +178,16 @@ impl Gophermap {
     }
 }
 
-named!(gopher_entry<(&str, &str, &str, &str, Result<u16, std::num::ParseIntError>)>,
-       do_parse!(
-           gtype: map_res!(take!(1), std::str::from_utf8) >>
-           descr: map_res!(take_until_and_consume!("\t"), std::str::from_utf8) >>
-           selec: map_res!(take_until_and_consume!("\t"), std::str::from_utf8) >>
-           host:  map_res!(take_until_and_consume!("\t"), std::str::from_utf8) >>
-           port:  map!(
-               map_res!(take_until_and_consume!("\r\n"), std::str::from_utf8), 
-               u16::from_str) >>
-           (gtype, descr, selec, host, port)
-           )
-       );
-
+named!(
+    gopher_entry<(&str, &str, &str, &str, Result<u16, std::num::ParseIntError>)>,
+    do_parse!(
+        gtype: map_res!(take!(1), std::str::from_utf8)
+            >> descr: map_res!(take_until_and_consume!("\t"), std::str::from_utf8)
+            >> selec: map_res!(take_until_and_consume!("\t"), std::str::from_utf8)
+            >> host: map_res!(take_until_and_consume!("\t"), std::str::from_utf8)
+            >> port: map!(
+                map_res!(take_until_and_consume!("\r\n"), std::str::from_utf8),
+                u16::from_str
+            ) >> (gtype, descr, selec, host, port)
+    )
+);

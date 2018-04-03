@@ -16,7 +16,8 @@
  *
  *    Authors: Stefan Luecke <glaxx@glaxx.net>
  */
-
+#![feature(termination_trait_lib)]
+#![feature(process_exitcode_placeholder)]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
 
 extern crate docopt;
@@ -35,14 +36,16 @@ pub mod gophermap;
 pub mod libcwrapper;
 
 use docopt::Docopt;
+
 use gophermap::*;
 use libcwrapper::*;
+
 use std::io::BufRead;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::string::String;
-
+use std::process::{ExitCode, Termination, exit};
 const USAGE: &'static str = "
 Usage:
     rusty-gopher  serve [<config>]
@@ -78,14 +81,14 @@ fn write_default_configfile(path: &String) {
     match conf.write_to_file(path) {
         Ok(_) => {
             println!("Configuration file written.\nPlease check {:?}", path);
-            std::process::exit(libc::EXIT_SUCCESS);
+            exit(ExitCode::SUCCESS.report());
         }
         Err(e) => {
             println!(
                 "Error writing configuration file to: {:?}\nError: {}",
                 path, e
             );
-            std::process::exit(libc::EXIT_FAILURE);
+            exit(ExitCode::FAILURE.report());
         }
     }
 }
@@ -109,7 +112,7 @@ fn main() {
                 "Error opening configuration file at: {}\nError: {}",
                 cfgpath, e
             );
-            std::process::exit(libc::EXIT_FAILURE);
+            exit(ExitCode::FAILURE.report());
         }
     }
     let generalconfig = config.section(Some("General"));
@@ -124,26 +127,26 @@ fn main() {
                     Ok(ad) => addr = ad,
                     Err(e) => {
                         println!("Error reading \"listento\" value.\nPlease check your config file\nError: {}", e);
-                        std::process::exit(libc::EXIT_FAILURE);
+                        exit(ExitCode::FAILURE.report());
                     }
                 },
                 None => {
                     println!("Error reading \"listento\" value.\nPlease check your config file.");
-                    std::process::exit(libc::EXIT_FAILURE);
+                    exit(ExitCode::FAILURE.report());
                 }
             }
             match g.get("user") {
                 Some(u) => user.push_str(u),
                 None => {
                     println!("Error reading \"user\" value.\nPlease check your config file.");
-                    std::process::exit(libc::EXIT_FAILURE);
+                    exit(ExitCode::FAILURE.report());
                 }
             }
             match g.get("rootdir") {
                 Some(r) => root.push_str(r),
                 None => {
                     println!("Error reading \"root\" value.\nPlease check your config file.");
-                    std::process::exit(libc::EXIT_FAILURE);
+                    exit(ExitCode::FAILURE.report());
                 }
             }
         }
@@ -153,7 +156,7 @@ fn main() {
             You can generate a new one by typing: {} genconfig",
                 env!("CARGO_PKG_NAME")
             );
-            std::process::exit(libc::EXIT_FAILURE);
+            exit(ExitCode::FAILURE.report());
         }
     }
 
@@ -166,8 +169,8 @@ fn main() {
     );
 
     match listen_and_serve(addr, root, user, rtlog) {
-        Some(_) => std::process::exit(libc::EXIT_FAILURE),
-        None => std::process::exit(libc::EXIT_SUCCESS),
+        Some(_) => exit(ExitCode::FAILURE.report()),
+        None => exit(ExitCode::SUCCESS.report()),
     }
 }
 

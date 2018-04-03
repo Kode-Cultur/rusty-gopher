@@ -24,7 +24,7 @@ extern crate docopt;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate ini;
+extern crate toml;
 extern crate libc;
 #[macro_use]
 extern crate slog;
@@ -46,6 +46,9 @@ use std::path::{Path, PathBuf};
 use std::str::FromStr;
 use std::string::String;
 use std::process::{ExitCode, Termination, exit};
+use std::default::Default;
+use std::fs::File;
+
 const USAGE: &'static str = "
 Usage:
     rusty-gopher  serve [<config>]
@@ -58,12 +61,10 @@ Options:
     --version   Show version.
 ";
 
-const DEFAULT_MASTER_CONFIG: &'static str = "/etc/rusty_gopher.cfg";
+/// The default config file path
+const DEFAULT_MASTER_CONFIG: &'static str = "/etc/rusty_gopher.toml";
 
-const DEFAULT_ROOT_DIR: &'static str = "/var/gopher";
-const DEFAULT_USER: &'static str = "gopher";
-const DEFAULT_LISTEN_ADDRESS: &'static str = "0.0.0.0:70";
-
+/// This struct contains all different CLI arguments
 #[derive(Serialize, Deserialize)]
 struct Args {
     cmd_serve: bool,
@@ -71,94 +72,82 @@ struct Args {
     arg_config: Option<String>,
 }
 
-fn write_default_configfile(path: &String) {
-    let mut conf = ini::Ini::new();
-    conf.with_section(Some("General"))
-        .set("rootdir", DEFAULT_ROOT_DIR)
-        .set("user", DEFAULT_USER)
-        .set("listento", DEFAULT_LISTEN_ADDRESS);
+/// Writes a config file with default values to the given path.
+///
+/// # Arguments
+///
+/// * `path` - Path of the new configfile.
+fn write_default_configfile(path: &String) -> Result<(), std::io::Error> {
 
-    match conf.write_to_file(path) {
-        Ok(_) => {
-            println!("Configuration file written.\nPlease check {:?}", path);
-            exit(ExitCode::SUCCESS.report());
+    // Create a default config file object
+    let conf = Config::default();
+
+    let mut file = File::create(path.as_str())?;
+
+    // write it to a file
+    file.write_all(&toml::to_vec(&conf).unwrap())?;
+    file.sync_all()?;
+    Ok(())
+}
+
+/// General section of the config file.
+#[derive(Serialize, Deserialize)]
+struct General {
+    /// The username rusty-gopher will switch to after binding to a port < 1024.
+    user: String,
+    /// The data root directory.
+    rootdir: String,
+    /// The listen address.
+    listento: String,
+}
+
+impl Default for General {
+    fn default() -> Self {
+        General {
+            user: "gopher".to_string(),
+            rootdir: "/var/gopher".to_string(),
+            listento: "0.0.0.0:70".to_string(),
         }
-        Err(e) => {
-            println!(
-                "Error writing configuration file to: {:?}\nError: {}",
-                path, e
-            );
-            exit(ExitCode::FAILURE.report());
+    }
+}
+
+/// Config file struct.
+#[derive(Serialize, Deserialize)]
+struct Config {
+    /// General section.
+    general: General,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Config {
+            general: General::default(),
         }
     }
 }
 
 fn main() {
+    use std::io::Read;
+    // Let docopt parse our arguments.
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.deserialize())
         .unwrap_or_else(|e| e.exit());
 
+    // Either use the default config file path or the user supplied.
     let cfgpath = args.arg_config.unwrap_or(DEFAULT_MASTER_CONFIG.to_string());
 
     if args.cmd_genconfig {
         write_default_configfile(&cfgpath);
     }
 
-    let config: ini::Ini;
-    match ini::Ini::load_from_file(&cfgpath) {
-        Ok(f) => config = f,
-        Err(e) => {
-            println!(
-                "Error opening configuration file at: {}\nError: {}",
-                cfgpath, e
-            );
-            exit(ExitCode::FAILURE.report());
-        }
-    }
-    let generalconfig = config.section(Some("General"));
-    let addr: std::net::SocketAddr;
-    let mut user = String::new();
-    let mut root = String::new();
+    let mut cfgfile = File::open(&cfgpath)
+        .expect(&format!("Error opening configuration file at: {}", cfgpath));
 
-    match generalconfig {
-        Some(g) => {
-            match g.get("listento") {
-                Some(a) => match std::net::SocketAddr::from_str(a) {
-                    Ok(ad) => addr = ad,
-                    Err(e) => {
-                        println!("Error reading \"listento\" value.\nPlease check your config file\nError: {}", e);
-                        exit(ExitCode::FAILURE.report());
-                    }
-                },
-                None => {
-                    println!("Error reading \"listento\" value.\nPlease check your config file.");
-                    exit(ExitCode::FAILURE.report());
-                }
-            }
-            match g.get("user") {
-                Some(u) => user.push_str(u),
-                None => {
-                    println!("Error reading \"user\" value.\nPlease check your config file.");
-                    exit(ExitCode::FAILURE.report());
-                }
-            }
-            match g.get("rootdir") {
-                Some(r) => root.push_str(r),
-                None => {
-                    println!("Error reading \"root\" value.\nPlease check your config file.");
-                    exit(ExitCode::FAILURE.report());
-                }
-            }
-        }
-        None => {
-            println!(
-                "Error reading configuration values.\nYour config file seems corrupted\n/
-            You can generate a new one by typing: {} genconfig",
-                env!("CARGO_PKG_NAME")
-            );
-            exit(ExitCode::FAILURE.report());
-        }
-    }
+    let mut cfgstring = String::new();
+    cfgfile.read_to_string(&mut cfgstring);
+    let config: Config = toml::from_str(&cfgstring).unwrap();
+    let addr = std::net::SocketAddr::from_str(&config.general.listento)
+        .expect("Error reading \"listento\" value.\n");
 
     use slog::Drain;
 
@@ -168,7 +157,7 @@ fn main() {
         o!(env!("CARGO_PKG_NAME") => env!("CARGO_PKG_VERSION")),
     );
 
-    match listen_and_serve(addr, root, user, rtlog) {
+    match listen_and_serve(addr, config.general.rootdir, config.general.user, rtlog) {
         Some(_) => exit(ExitCode::FAILURE.report()),
         None => exit(ExitCode::SUCCESS.report()),
     }

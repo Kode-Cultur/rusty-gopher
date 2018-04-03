@@ -19,19 +19,19 @@ cargo build --release
 
 The configuration is quite simple, as there is nothing much to configure. An example configuration may look as follows:
 
-```ini
-[General]
+```toml
+[general]
 # If you choose to let your gopher daemon listen on the standard port (70, 
 # anything below 1024) you have to be root, which is not desirable after
 # binding to that port. So rusty-gopher will change its user corresponding to
 # the following config value.
-user=gopher
+user = "gopher"
 
 # The root directory in which your files are located.
-rootdir=/var/gopher
+rootdir = "/var/gopher"
 
 # You can specify on which address:port your gopher daemon should listen.
-listento=0.0.0.0:70
+listento = "0.0.0.0:70"
 ```
 
 You may generate an empty configuration file by typing:

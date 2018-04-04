@@ -102,11 +102,7 @@ impl DirectoryEntry {
         }
     }
 
-    pub fn from_dir_entry(
-        e: std::fs::DirEntry,
-        host: String,
-        port: u16,
-    ) -> DirectoryEntry {
+    pub fn from_dir_entry(e: std::fs::DirEntry, host: String, port: u16) -> DirectoryEntry {
         let mut ft = GopherType::Error;
         if let Ok(ftype) = e.file_type() {
             if ftype.is_dir() {

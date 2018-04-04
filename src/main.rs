@@ -24,33 +24,24 @@ extern crate docopt;
 extern crate serde;
 #[macro_use]
 extern crate serde_derive;
-extern crate toml;
 extern crate libc;
+extern crate toml;
 #[macro_use]
 extern crate slog;
 extern crate slog_term;
 #[macro_use]
 extern crate nom;
-extern crate users;
 extern crate hostname;
+extern crate users;
 
 pub mod gophermap;
 
-use gophermap::*;
 use docopt::Docopt;
+use gophermap::*;
 use hostname::get_hostname;
-use users::{get_user_by_name, get_current_uid};
-
-
-
-
-
-use std::io::{BufRead, BufReader, Write, Read};
-use std::net::TcpListener;
-use std::process::{ExitCode, Termination, exit};
-use std::default::Default;
-use std::fs::File;
-use std::str::FromStr;
+use std::{default::Default, fs::File, io::{BufRead, Read, Write}, net::TcpListener,
+          process::{exit, ExitCode, Termination}, str::FromStr};
+use users::{get_current_uid, get_user_by_name};
 
 const USAGE: &'static str = "
 Usage:
@@ -86,7 +77,6 @@ struct Args {
 ///
 /// * `path` - Path of the new configfile.
 fn write_default_configfile(path: &String) -> Result<(), std::io::Error> {
-
     // Create a default config file object
     let conf = Config::default();
 
@@ -144,14 +134,14 @@ fn main() {
     let cfgpath = args.arg_config.unwrap_or(DEFAULT_MASTER_CONFIG.to_string());
 
     if args.cmd_genconfig {
-        write_default_configfile(&cfgpath);
+        write_default_configfile(&cfgpath).unwrap();
     }
 
-    let mut cfgfile = File::open(&cfgpath)
-        .expect(&format!("Error opening configuration file at: {}", cfgpath));
+    let mut cfgfile =
+        File::open(&cfgpath).expect(&format!("Error opening configuration file at: {}", cfgpath));
 
     let mut cfgstring = String::new();
-    cfgfile.read_to_string(&mut cfgstring);
+    cfgfile.read_to_string(&mut cfgstring).unwrap();
     let config: Config = toml::from_str(&cfgstring).unwrap();
     let addr = std::net::SocketAddr::from_str(&config.general.listento)
         .expect("Error reading \"listento\" value.\n");
@@ -216,13 +206,13 @@ fn listen_and_serve(
                                 l.port
                             )).unwrap();
                         }
-                    },
+                    }
                     GopherMessage::SearchDir(selector, search_string) => {
                         debug!(clog, "got search request"; "selector" => selector);
                     }
                 };
             }
-            Err(e) => { error!(rtlog, "error handling client information {}", e) }
+            Err(e) => error!(rtlog, "error handling client information {}", e),
         };
     }
     None

@@ -91,6 +91,18 @@ impl std::fmt::Display for DirectoryEntry {
     }
 }
 
+impl Default for DirectoryEntry {
+    fn default() -> DirectoryEntry {
+        DirectoryEntry {
+            gtype: GopherType::Error,
+            description: "".to_string(),
+            selector: "".to_string(),
+            host: "".to_string(),
+            port: 0,
+        }
+    }
+}
+
 impl DirectoryEntry {
     pub fn new() -> DirectoryEntry {
         DirectoryEntry {

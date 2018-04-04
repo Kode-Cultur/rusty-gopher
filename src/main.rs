@@ -31,23 +31,26 @@ extern crate slog;
 extern crate slog_term;
 #[macro_use]
 extern crate nom;
+extern crate users;
+extern crate hostname;
 
 pub mod gophermap;
-pub mod libcwrapper;
-
-use docopt::Docopt;
 
 use gophermap::*;
-use libcwrapper::*;
+use docopt::Docopt;
+use hostname::get_hostname;
+use users::{get_user_by_name, get_current_uid};
 
-use std::io::BufRead;
-use std::io::Write;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use std::string::String;
+
+
+
+
+use std::io::{BufRead, BufReader, Write, Read};
+use std::net::TcpListener;
 use std::process::{ExitCode, Termination, exit};
 use std::default::Default;
 use std::fs::File;
+use std::str::FromStr;
 
 const USAGE: &'static str = "
 Usage:
@@ -132,7 +135,6 @@ impl Default for Config {
 }
 
 fn main() {
-    use std::io::Read;
     // Let docopt parse our arguments.
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.deserialize())
@@ -174,87 +176,54 @@ fn listen_and_serve(
     user: String,
     rtlog: slog::Logger,
 ) -> Option<std::io::Error> {
-    match std::net::TcpListener::bind(addr) {
-        Ok(listener) => {
-            let llog =
-                rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
-            info!(llog, "listening");
+    // Create tcp listener on provided address
+    let listener = TcpListener::bind(addr).unwrap();
+    let llog = rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
+    info!(llog, "listening");
 
-            match get_uid_by_name(user.clone()) {
-                Ok(desired_uid) => {
-                    if desired_uid != get_uid() {
-                        match switch_to_uid(desired_uid) {
-                            Ok(uid) => {
-                                info!(llog, "user switch successfull"; "current user" => uid)
-                            }
-                            Err(e) => {
-                                crit!(llog, "Error: {}", e; "desired uid" => desired_uid, "current uid" => get_uid());
-                                return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
-                            }
+    // Setting desired uid
+    let desired = get_user_by_name(&user)?;
+    if desired.uid() != get_current_uid() {
+        users::switch::set_current_uid(desired.uid()).unwrap();
+    }
+
+    // Still messy here but its something
+    for stream in listener.incoming() {
+        match stream {
+            Ok(mut st) => {
+                let clog = llog.new(o!("peer address" => format!("{}", st.peer_addr().unwrap())));
+                info!(clog, "new connection received");
+
+                // Create a bufreader from the stream...
+                let mut reader = std::io::BufReader::new(st.try_clone().unwrap());
+                let mut buf = String::new();
+                // ...read it...
+                let input = reader.read_line(&mut buf).unwrap();
+                debug!(clog, "got input"; "bytes read" => input);
+                let request = parse_input(buf).unwrap();
+                // ...and match the request
+                match request {
+                    GopherMessage::ListDir(selector) => {
+                        info!(clog, "got directory list request"; "selector" => &selector);
+                        let listing = get_directory_listing(root.clone(), selector).unwrap();
+                        for l in listing {
+                            st.write_fmt(format_args!(
+                                "{}{}\t{}\t{}\t{}\r\n",
+                                l.gtype.to_type_string(),
+                                l.description,
+                                l.selector,
+                                l.host,
+                                l.port
+                            )).unwrap();
                         }
+                    },
+                    GopherMessage::SearchDir(selector, search_string) => {
+                        debug!(clog, "got search request"; "selector" => selector);
                     }
-                }
-                Err(e) => {
-                    crit!(llog, "Error: {}", e; "desired user" => user);
-                    return Some(std::io::Error::new(std::io::ErrorKind::Other, e));
-                }
+                };
             }
-
-            // Sorry for the mess below.
-            // I'll fix it someday.
-            for client in listener.incoming() {
-                match client {
-                    Ok(mut c) => {
-                        let clog =
-                            llog.new(o!("peer address" => format!("{}", c.peer_addr().unwrap())));
-                        info!(clog, "new connection received");
-
-                        let mut reader = std::io::BufReader::new(c.try_clone().unwrap());
-                        let mut buf = String::new();
-                        match reader.read_line(&mut buf) {
-                            Ok(input) => {
-                                debug!(clog, "got input"; "bytes read" => input);
-
-                                match parse_input(buf) {
-                                    Ok(request) => match request {
-                                        GopherMessage::ListDir(selector) => {
-                                            info!(clog, "got directory list request"; "selector" => &selector);
-                                            match get_directory_listing(root.clone(), selector) {
-                                                Ok(listing) => {
-                                                    for l in listing {
-                                                        c.write_fmt(format_args!(
-                                                            "{}{}\t{}\t{}\t{}\r\n",
-                                                            l.gtype.to_type_string(),
-                                                            l.description,
-                                                            l.selector,
-                                                            l.host,
-                                                            l.port
-                                                        ));
-                                                    }
-                                                }
-                                                Err(e) => error!(clog, "Error: {}", e),
-                                            }
-                                        }
-                                        GopherMessage::SearchDir(selector, search_string) => {
-                                            debug!(clog, "got search request"; "selector" => selector);
-                                        }
-                                    },
-                                    Err(e) => error!(clog, "Error: {}", e),
-                                }
-                            }
-                            Err(e) => error!(clog, "error reading input: {}", e),
-                        }
-                    }
-                    Err(e) => {
-                        error!(rtlog, "error handling client information {}", e);
-                    }
-                }
-            }
-        }
-        Err(e) => {
-            crit!(rtlog, "error binding to {} failed {}", addr, e);
-            return Some(e);
-        }
+            Err(e) => { error!(rtlog, "error handling client information {}", e) }
+        };
     }
     None
 }
@@ -270,8 +239,8 @@ fn get_directory_listing(
 ) -> Result<Vec<DirectoryEntry>, std::io::Error> {
     match std::fs::read_dir(root + &request) {
         Ok(rd) => {
-            let mut res: Vec<DirectoryEntry> = std::vec::Vec::new();
-            let hostname = get_canonical_hostname();
+            let mut res: Vec<DirectoryEntry> = Vec::new();
+            let hostname = get_hostname().unwrap();
             for possible_entry in rd {
                 match possible_entry {
                     Ok(entry) => {

@@ -227,61 +227,50 @@ fn get_directory_listing(
     root: String,
     request: String,
 ) -> Result<Vec<DirectoryEntry>, std::io::Error> {
-    match std::fs::read_dir(root + &request) {
-        Ok(rd) => {
-            let mut res: Vec<DirectoryEntry> = Vec::new();
-            let hostname = get_hostname().unwrap();
-            for possible_entry in rd {
-                match possible_entry {
-                    Ok(entry) => {
-                        if entry.file_type().unwrap().is_dir() {
-                            let e = DirectoryEntry {
-                                gtype: GopherType::Directory,
-                                description: format!(
-                                    "{}",
-                                    entry.file_name().into_string().unwrap()
-                                ), //TODO
-                                selector: format!(
-                                    "{}",
-                                    entry
-                                        .path()
-                                        .to_str()
-                                        .expect("selector has to be valid utf8")
-                                        .to_string()
-                                ),
-                                host: hostname.clone(),
-                                port: 7070, //TODO
-                            };
-                            res.push(e);
-                        } else if entry.file_type().unwrap().is_file() {
-                            let e = DirectoryEntry {
-                                gtype: GopherType::BinaryFile,
-                                description: format!(
-                                    "{}",
-                                    entry.file_name().into_string().unwrap()
-                                ),
-                                selector: format!(
-                                    "{}",
-                                    entry
-                                        .path()
-                                        .to_str()
-                                        .expect("selector has to be valid utf8")
-                                        .to_string()
-                                ),
-                                host: hostname.clone(),
-                                port: 7070,
-                            };
-                            res.push(e);
-                        }
-                    }
-                    Err(e) => return Err(e),
-                }
-            }
-            Ok(res)
-        }
+    let rd = std::fs::read_dir(root + &request)?;
+    let hostname = get_hostname().expect("Failed to get hostname");
+    let mut res: Vec<DirectoryEntry> = Vec::new();
 
-        Err(e) => Err(e),
+    for possible_entry in rd {
+        let entry = possible_entry?;
+
+        // If the entry is a directory...
+        if entry.file_type()?.is_dir() {
+            let e = DirectoryEntry {
+                gtype: GopherType::Directory,
+                description: format!("{}", entry.file_name().into_string().unwrap()), //TODO
+                selector: format!(
+                    "{}",
+                    entry
+                        .path()
+                        .to_str()
+                        .expect("selector has to be valid utf8")
+                        .to_string()
+                ),
+                host: hostname.clone(),
+                port: 7070, //TODO
+            };
+            res.push(e);
+        // If the entry is a file
+        } else if entry.file_type()?.is_file() {
+            let e = DirectoryEntry {
+                gtype: GopherType::BinaryFile,
+                description: format!("{}", entry.file_name().into_string().unwrap()),
+                selector: format!(
+                    "{}",
+                    entry
+                        .path()
+                        .to_str()
+                        .expect("selector has to be valid utf8")
+                        .to_string()
+                ),
+                host: hostname.clone(),
+                port: 7070,
+            };
+            res.push(e);
+        };
     }
+    Ok(res)
 }
 
 fn parse_input(input: String) -> Result<GopherMessage, &'static str> {

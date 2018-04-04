@@ -233,42 +233,32 @@ fn get_directory_listing(
 
     for possible_entry in rd {
         let entry = possible_entry?;
+        // Creating desired directory entry
+        // Shouldnt matter assigning GopherType::Error as gtype, after diren only
+        // gets pushed into res when its a directory or file
+        let mut diren = DirectoryEntry {
+            gtype: GopherType::Error,
+            description: format!("{}", entry.file_name().into_string().unwrap()), //TODO
+            selector: format!(
+                "{}",
+                entry
+                    .path()
+                    .to_str()
+                    .expect("selector has to be valid utf8")
+                    .to_string()
+            ),
+            host: hostname.clone(),
+            port: 7070, //TODO
+        };
 
         // If the entry is a directory...
         if entry.file_type()?.is_dir() {
-            let e = DirectoryEntry {
-                gtype: GopherType::Directory,
-                description: format!("{}", entry.file_name().into_string().unwrap()), //TODO
-                selector: format!(
-                    "{}",
-                    entry
-                        .path()
-                        .to_str()
-                        .expect("selector has to be valid utf8")
-                        .to_string()
-                ),
-                host: hostname.clone(),
-                port: 7070, //TODO
-            };
-            res.push(e);
-        // If the entry is a file
+            diren.gtype = GopherType::Directory;
+            res.push(diren);
         } else if entry.file_type()?.is_file() {
-            let e = DirectoryEntry {
-                gtype: GopherType::BinaryFile,
-                description: format!("{}", entry.file_name().into_string().unwrap()),
-                selector: format!(
-                    "{}",
-                    entry
-                        .path()
-                        .to_str()
-                        .expect("selector has to be valid utf8")
-                        .to_string()
-                ),
-                host: hostname.clone(),
-                port: 7070,
-            };
-            res.push(e);
-        };
+            diren.gtype = GopherType::BinaryFile;
+            res.push(diren);
+        }
     }
     Ok(res)
 }

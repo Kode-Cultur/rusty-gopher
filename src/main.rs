@@ -35,9 +35,12 @@ extern crate hostname;
 extern crate users;
 
 pub mod gophermap;
+pub mod gophertype;
+pub mod directoryentry;
 
 use docopt::Docopt;
-use gophermap::*;
+use gophertype::*;
+use directoryentry::*;
 use hostname::get_hostname;
 use std::{default::Default, fs::File, io::{BufRead, Read, Write}, net::TcpListener,
           process::{exit, ExitCode, Termination}, str::FromStr};
@@ -265,7 +268,7 @@ fn get_directory_listing(
 
 fn parse_input(input: String) -> Result<GopherMessage, &'static str> {
     match input.as_str() {
-        "\r\n" => Ok(GopherMessage::ListDir("/".to_string())),
+        "\r\n" => Ok(GopherMessage::ListDir('/'.to_string())),
         _ => {
             if input.is_empty() {
                 return Err("Invalid request");

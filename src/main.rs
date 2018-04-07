@@ -1,5 +1,6 @@
 /*
- *    Copyright (C) 2016 Stefan Luecke
+ *    Copyright (C) 2016-2018 Stefan Luecke
+ *                  2018 Nicolas Martin
  *
  *    This program is free software: you can redistribute it and/or modify
  *    it under the terms of the GNU Affero General Public License as published
@@ -15,6 +16,7 @@
  *    along with this program.  If not, see <http://www.gnu.org/licenses/>.
  *
  *    Authors: Stefan Luecke <glaxx@glaxx.net>
+ *             Nicolas Martin <penguwingit@gmail.com>
  */
 #![feature(termination_trait_lib)]
 #![feature(process_exitcode_placeholder)]

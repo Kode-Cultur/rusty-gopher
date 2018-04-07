@@ -18,6 +18,7 @@
  */
 use super::std;
 
+#[derive(Debug, PartialEq)]
 pub enum GopherType {
     Informational,
     Gif,
@@ -69,6 +70,39 @@ impl GopherType {
             "gif" => GopherType::Gif,
             _ => GopherType::BinaryFile,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_to_type_string() {
+        assert_eq!(GopherType::to_type_string(&GopherType::Informational), "i");
+        assert_eq!(GopherType::to_type_string(&GopherType::Gif), "g");
+        assert_eq!(GopherType::to_type_string(&GopherType::Directory), "1");
+        assert_eq!(GopherType::to_type_string(&GopherType::File), "0");
+        assert_eq!(GopherType::to_type_string(&GopherType::BinaryFile), "9");
+        assert_eq!(GopherType::to_type_string(&GopherType::Error), "3");
+    }
+
+    #[test]
+    fn test_from_str() {
+        assert_eq!(GopherType::from_str("i"), GopherType::Informational);
+        assert_eq!(GopherType::from_str("g"), GopherType::Gif);
+        assert_eq!(GopherType::from_str("1"), GopherType::Directory);
+        assert_eq!(GopherType::from_str("9"), GopherType::BinaryFile);
+        assert_eq!(GopherType::from_str("3"), GopherType::Error);
+        assert_eq!(GopherType::from_str("7"), GopherType::Error);
+    }
+
+    #[test]
+    fn test_from_file_extension() {
+        assert_eq!(GopherType::from_file_extension("txt"), GopherType::File);
+        assert_eq!(GopherType::from_file_extension("md"), GopherType::File);
+        assert_eq!(GopherType::from_file_extension("gif"), GopherType::Gif);
+        assert_eq!(GopherType::from_file_extension("wtf"), GopherType::BinaryFile);
     }
 }
 

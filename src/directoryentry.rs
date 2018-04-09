@@ -92,3 +92,23 @@ impl DirectoryEntry {
         }
     }
 }
+
+use nom::is_digit;
+
+fn is_tab(chr: u8) -> bool {
+    chr == '\t' as u8
+}
+
+named!(
+    gopher_entry<(&str, &str, &str, &str, Result<u16, std::num::ParseIntError>)>,
+    do_parse!(
+        gtype: map_res!(take!(1), std::str::from_utf8)
+            >> descr: map_res!(take_till!(is_tab), std::str::from_utf8) >> tag_s!("\t")
+            >> selec: map_res!(take_till!(is_tab), std::str::from_utf8) >> tag_s!("\t")
+            >> host: map_res!(take_till!(is_tab), std::str::from_utf8) >> tag_s!("\t")
+            >> port: map!(
+                map_res!(dbg!(take_while!(is_digit)), std::str::from_utf8),
+                u16::from_str
+            ) >> (gtype, descr, selec, host, port)
+    )
+);

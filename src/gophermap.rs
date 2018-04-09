@@ -64,17 +64,3 @@ impl Gophermap {
         //Ok(gopher_entry(input.as_bytes()))
     }
 }
-
-named!(
-    gopher_entry<(&str, &str, &str, &str, Result<u16, std::num::ParseIntError>)>,
-    do_parse!(
-        gtype: map_res!(take!(1), std::str::from_utf8)
-            >> descr: map_res!(take_until_and_consume!("\t"), std::str::from_utf8)
-            >> selec: map_res!(take_until_and_consume!("\t"), std::str::from_utf8)
-            >> host: map_res!(take_until_and_consume!("\t"), std::str::from_utf8)
-            >> port: map!(
-                map_res!(take_until_and_consume!("\r\n"), std::str::from_utf8),
-                u16::from_str
-            ) >> (gtype, descr, selec, host, port)
-    )
-);

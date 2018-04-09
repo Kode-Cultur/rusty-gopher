@@ -20,8 +20,8 @@
  */
 use super::std;
 use directoryentry::DirectoryEntry;
-use std::str::FromStr;
 
+#[derive(Debug)]
 pub struct Gophermap {
     pub entries: Vec<DirectoryEntry>,
 }
@@ -39,8 +39,23 @@ impl Gophermap {
             entries: Vec::new(),
         }
     }
-    pub fn from_string<S: Into<String>>(st: &S) -> Result<Gophermap, &'static str> {
-        Err("not yet implemented")
+
+    /// Generates a Gophermap from a string
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let m = Gophermap::form_string("");
+    /// ```
+    pub fn from_string(input: &str) -> Result<Gophermap, &'static str> {
+        let mut result: Gophermap = Gophermap::new();
+        for line in input.lines() {
+            match DirectoryEntry::from_string(line) {
+                Ok(d) => result.entries.push(d),
+                Err(e) => println!("Error parsing line: {}", e), // TODO: Return error
+            }
+        }
+        Ok(result)
     }
 
     pub fn from_directory(

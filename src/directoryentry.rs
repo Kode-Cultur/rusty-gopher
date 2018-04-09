@@ -19,8 +19,10 @@
  *             Nicolas Martin <penguwingit@gmail.com>
  */
 use super::std;
+use std::str::FromStr;
 use gophertype::GopherType;
 
+#[derive(Debug)]
 pub struct DirectoryEntry {
     pub gtype: GopherType,
     pub description: String,
@@ -89,6 +91,29 @@ impl DirectoryEntry {
             selector: format!("{}", e.path().to_str().unwrap_or("").to_string()),
             host: host,
             port: port,
+        }
+    }
+
+    pub fn from_string(st: &str) -> Result<DirectoryEntry, String> {
+        let parsing_result = gopher_entry(st.as_bytes()).to_result();
+
+        match parsing_result {
+            Ok((g, d, s, h, p)) => {
+                return Ok(DirectoryEntry {
+                    gtype: GopherType::from_str(g),
+                    description: d.to_string(),
+                    selector: s.to_string(),
+                    host: h.to_string(),
+                    port: match p {
+                        Ok(o) => o,
+                        Err(e) => {
+                            println!("{}", e);
+                            0
+                        }
+                    },
+                })
+            }
+            Err(e) => Err(e.description().to_string()),
         }
     }
 }

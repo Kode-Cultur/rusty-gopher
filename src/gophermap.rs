@@ -80,9 +80,42 @@ impl Gophermap {
         }
         Ok(res)
     }
+}
 
-    fn parse(input: &str) -> Result<Gophermap, &'static str> {
-        Err("not yet implemented")
-        //Ok(gopher_entry(input.as_bytes()))
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use GopherType;
+
+    #[test]
+    fn test_from_str() {
+        let teststr = format!("0About internet Gopher\tStuff:About us\trawBits.micro.umn.edu\t7070\r\n0About internet Gopher\tStuff:About us\trawBits.micro.umn.edu\t70\r\n");
+
+        let mut entry = DirectoryEntry::new();
+        entry.gtype = GopherType::from_str("0");
+        entry.description = "About internet Gopher".to_string();
+        entry.selector = "Stuff:About us".to_string();
+        entry.host = "rawBits.micro.umn.edu".to_string();
+        entry.port = 7070;
+
+        let mut entry2 = DirectoryEntry::new();
+        entry2.gtype = GopherType::from_str("0");
+        entry2.description = "About internet Gopher".to_string();
+        entry2.selector = "Stuff:About us".to_string();
+        entry2.host = "rawBits.micro.umn.edu".to_string();
+        entry2.port = 70;
+
+        let parsed_map = Gophermap::from_string(&teststr).unwrap();
+        assert_eq!(parsed_map.entries[0].gtype, entry.gtype);
+        assert_eq!(parsed_map.entries[0].description, entry.description);
+        assert_eq!(parsed_map.entries[0].selector, entry.selector);
+        assert_eq!(parsed_map.entries[0].host, entry.host);
+        assert_eq!(parsed_map.entries[0].port, entry.port);
+
+        assert_eq!(parsed_map.entries[1].gtype, entry2.gtype);
+        assert_eq!(parsed_map.entries[1].description, entry2.description);
+        assert_eq!(parsed_map.entries[1].selector, entry2.selector);
+        assert_eq!(parsed_map.entries[1].host, entry2.host);
+        assert_eq!(parsed_map.entries[1].port, entry2.port);
     }
 }

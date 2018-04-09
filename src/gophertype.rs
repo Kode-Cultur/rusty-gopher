@@ -60,6 +60,7 @@ impl GopherType {
             "i" => GopherType::Informational,
             "g" => GopherType::Gif,
             "1" => GopherType::Directory,
+            "0" => GopherType::File,
             "9" => GopherType::BinaryFile,
             "3" => GopherType::Error,
             _ => GopherType::Error,
@@ -104,7 +105,9 @@ mod tests {
         assert_eq!(GopherType::from_file_extension("txt"), GopherType::File);
         assert_eq!(GopherType::from_file_extension("md"), GopherType::File);
         assert_eq!(GopherType::from_file_extension("gif"), GopherType::Gif);
-        assert_eq!(GopherType::from_file_extension("wtf"), GopherType::BinaryFile);
+        assert_eq!(
+            GopherType::from_file_extension("wtf"),
+            GopherType::BinaryFile
+        );
     }
 }
-

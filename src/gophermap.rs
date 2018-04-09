@@ -58,6 +58,13 @@ impl Gophermap {
         Ok(result)
     }
 
+    /// Generates a Gophermap out of directory entries.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let m = Gophermap::from_directory("path", "localhost", 7070);
+    /// ```
     pub fn from_directory(
         path: &std::path::Path,
         host: String,

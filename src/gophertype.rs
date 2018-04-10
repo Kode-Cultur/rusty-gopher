@@ -95,6 +95,7 @@ mod tests {
         assert_eq!(GopherType::from_str("i"), GopherType::Informational);
         assert_eq!(GopherType::from_str("g"), GopherType::Gif);
         assert_eq!(GopherType::from_str("1"), GopherType::Directory);
+        assert_eq!(GopherType::from_str("0"), GopherType::File);
         assert_eq!(GopherType::from_str("9"), GopherType::BinaryFile);
         assert_eq!(GopherType::from_str("3"), GopherType::Error);
         assert_eq!(GopherType::from_str("7"), GopherType::Error);

@@ -19,6 +19,7 @@
  *             Nicolas Martin <penguwingit@gmail.com>
  */
 use super::std;
+use self::GopherType::*;
 
 #[derive(Debug, PartialEq)]
 pub enum GopherType {
@@ -33,12 +34,12 @@ pub enum GopherType {
 impl std::fmt::Display for GopherType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         match *self {
-            GopherType::Informational => write!(f, "i"),
-            GopherType::Gif => write!(f, "g"),
-            GopherType::Directory => write!(f, "1"),
-            GopherType::File => write!(f, "0"),
-            GopherType::BinaryFile => write!(f, "9"),
-            GopherType::Error => write!(f, "3"),
+            Informational => write!(f, "i"),
+            Gif => write!(f, "g"),
+            Directory => write!(f, "1"),
+            File => write!(f, "0"),
+            BinaryFile => write!(f, "9"),
+            Error => write!(f, "3"),
         }
     }
 }
@@ -46,32 +47,32 @@ impl std::fmt::Display for GopherType {
 impl GopherType {
     pub fn to_type_string(&self) -> String {
         match *self {
-            GopherType::Informational => "i",
-            GopherType::Gif => "g",
-            GopherType::Directory => "1",
-            GopherType::File => "0",
-            GopherType::BinaryFile => "9",
-            GopherType::Error => "3",
+            Informational => "i",
+            Gif => "g",
+            Directory => "1",
+            File => "0",
+            BinaryFile => "9",
+            Error => "3",
         }.to_string()
     }
 
     pub fn from_str(s: &str) -> GopherType {
         match s {
-            "i" => GopherType::Informational,
-            "g" => GopherType::Gif,
-            "1" => GopherType::Directory,
-            "0" => GopherType::File,
-            "9" => GopherType::BinaryFile,
-            "3" => GopherType::Error,
-            _ => GopherType::Error,
+            "i" => Informational,
+            "g" => Gif,
+            "1" => Directory,
+            "0" => File,
+            "9" => BinaryFile,
+            "3" => Error,
+            _ => Error,
         }
     }
 
     pub fn from_file_extension(s: &str) -> GopherType {
         match s {
-            "txt" | "md" => GopherType::File,
-            "gif" => GopherType::Gif,
-            _ => GopherType::BinaryFile,
+            "txt" | "md" => File,
+            "gif" => Gif,
+            _ => BinaryFile,
         }
     }
 }

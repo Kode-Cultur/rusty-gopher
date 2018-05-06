@@ -21,6 +21,8 @@
 #![feature(termination_trait_lib)]
 #![feature(process_exitcode_placeholder)]
 #![cfg_attr(feature = "clippy", plugin(clippy))]
+#![feature(test)]
+extern crate test;
 
 extern crate docopt;
 extern crate serde;

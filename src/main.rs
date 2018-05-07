@@ -36,18 +36,20 @@ extern crate slog_term;
 #[macro_use]
 extern crate nom;
 extern crate hostname;
+extern crate tokio;
 extern crate users;
 
+pub mod directoryentry;
 pub mod gophermap;
 pub mod gophertype;
-pub mod directoryentry;
 
+use directoryentry::*;
 use docopt::Docopt;
 use gophertype::*;
-use directoryentry::*;
 use hostname::get_hostname;
-use std::{default::Default, fs::File, io::{BufRead, Read, Write}, net::TcpListener,
-          process::{exit, ExitCode, Termination}, str::FromStr};
+use std::{default::Default, fs::File, io::{Read, Write}, process::{exit, ExitCode, Termination},
+          str::FromStr};
+use tokio::{net::TcpListener, prelude::*};
 use users::{get_current_uid, get_user_by_name};
 
 const USAGE: &'static str = "
@@ -174,7 +176,7 @@ fn listen_and_serve(
     rtlog: slog::Logger,
 ) -> Option<std::io::Error> {
     // Create tcp listener on provided address
-    let listener = TcpListener::bind(addr).unwrap();
+    let listener = TcpListener::bind(&addr).expect("Unable to bind TcpListener");
     let llog = rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
     info!(llog, "listening");
 
@@ -185,43 +187,45 @@ fn listen_and_serve(
     }
 
     // Still messy here but its something
-    for stream in listener.incoming() {
-        match stream {
-            Ok(mut st) => {
-                let clog = llog.new(o!("peer address" => format!("{}", st.peer_addr().unwrap())));
-                info!(clog, "new connection received");
+    let _server = listener
+        .incoming()
+        .map_err(|e| error!(rtlog, "accept failed = {:?}", e))
+        .for_each(|mut stream| {
+            let clog = llog.new(o!("peer address" => format!("{}", stream.peer_addr().unwrap())));
+            info!(clog, "new connection received");
 
-                // Create a bufreader from the stream...
-                let mut reader = std::io::BufReader::new(st.try_clone().unwrap());
-                let mut buf = String::new();
-                // ...read it...
-                let input = reader.read_line(&mut buf).unwrap();
+            // Read stream into buffer
+            let mut buf = String::new();
+            stream.read_to_string(&mut buf).unwrap();
+            // Splitting buf into lines an iterate over them
+            let input: Vec<_> = buf.lines().collect();
+            input.into_iter().for_each(|input| {
                 debug!(clog, "got input"; "bytes read" => input);
-                let request = parse_input(buf).unwrap();
-                // ...and match the request
-                match request {
+                // ...and match the parsed input to a request
+                match parse_input(input.to_string()).unwrap() {
                     GopherMessage::ListDir(selector) => {
                         info!(clog, "got directory list request"; "selector" => &selector);
                         let listing = get_directory_listing(root.clone(), selector).unwrap();
                         for l in listing {
-                            st.write_fmt(format_args!(
-                                "{}{}\t{}\t{}\t{}\r\n",
-                                l.gtype.to_type_string(),
-                                l.description,
-                                l.selector,
-                                l.host,
-                                l.port
-                            )).unwrap();
+                            stream
+                                .write_fmt(format_args!(
+                                    "{}{}\t{}\t{}\t{}\r\n",
+                                    l.gtype.to_type_string(),
+                                    l.description,
+                                    l.selector,
+                                    l.host,
+                                    l.port
+                                ))
+                                .unwrap();
                         }
                     }
                     GopherMessage::SearchDir(selector, search_string) => {
                         debug!(clog, "got search request"; "selector" => selector);
                     }
                 };
-            }
-            Err(e) => error!(rtlog, "error handling client information {}", e),
-        };
-    }
+            });
+            return Ok(());
+        });
     None
 }
 

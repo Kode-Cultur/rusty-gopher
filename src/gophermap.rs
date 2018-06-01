@@ -74,7 +74,8 @@ impl Gophermap {
         let mut res = Gophermap::new();
         for p_entry in rd {
             if let Ok(entry) = p_entry {
-                let gentry = DirectoryEntry::from_dir_entry(entry, host.clone(), port);
+                let gentry =
+                    DirectoryEntry::from_dir_entry(entry, host.clone(), port);
                 res.entries.push(gentry);
             }
         }
@@ -84,9 +85,9 @@ impl Gophermap {
 
 #[cfg(test)]
 mod tests {
-    use test::Bencher;
-    use test::black_box;
     use super::*;
+    use test::black_box;
+    use test::Bencher;
     use GopherType;
 
     #[test]
@@ -124,13 +125,6 @@ mod tests {
     #[bench]
     fn bench_from_str(b: &mut Bencher) {
         let teststr = format!("0About internet Gopher\tStuff:About us\trawBits.micro.umn.edu\t7070\r\n0About internet Gopher\tStuff:About us\trawBits.micro.umn.edu\t70\r\n");
-
-        let mut entry = DirectoryEntry::new();
-        entry.gtype = GopherType::from_str("0");
-        entry.description = "About internet Gopher".to_string();
-        entry.selector = "Stuff:About us".to_string();
-        entry.host = "rawBits.micro.umn.edu".to_string();
-        entry.port = 7070;
-        b.iter(|| {black_box(Gophermap::from_string(&teststr).unwrap())});
+        b.iter(|| black_box(Gophermap::from_string(&teststr).unwrap()));
     }
 }

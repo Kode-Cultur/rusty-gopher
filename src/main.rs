@@ -47,8 +47,11 @@ use directoryentry::*;
 use docopt::Docopt;
 use gophertype::*;
 use hostname::get_hostname;
-use std::{default::Default, fs::File, io::{Read, Write}, process::{exit, ExitCode, Termination},
-          str::FromStr};
+use slog::Drain;
+use std::{
+    default::Default, fs::File, io::{Read, Write},
+    process::{exit, ExitCode, Termination}, str::FromStr,
+};
 use tokio::{net::TcpListener, prelude::*};
 use users::{get_current_uid, get_user_by_name};
 
@@ -133,7 +136,7 @@ impl Default for Config {
     }
 }
 
-fn main() {
+fn main() -> Result<(), std::io::Error> {
     // Let docopt parse our arguments.
     let args: Args = Docopt::new(USAGE)
         .and_then(|d| d.deserialize())
@@ -143,19 +146,15 @@ fn main() {
     let cfgpath = args.arg_config.unwrap_or(DEFAULT_MASTER_CONFIG.to_string());
 
     if args.cmd_genconfig {
-        write_default_configfile(&cfgpath).unwrap();
+        write_default_configfile(&cfgpath)?;
     }
 
-    let mut cfgfile =
-        File::open(&cfgpath).expect(&format!("Error opening configuration file at: {}", cfgpath));
+    let mut cfgfile = File::open(&cfgpath)
+        .expect(&format!("Error opening configuration file at: {}", cfgpath));
 
     let mut cfgstring = String::new();
-    cfgfile.read_to_string(&mut cfgstring).unwrap();
+    cfgfile.read_to_string(&mut cfgstring)?;
     let config: Config = toml::from_str(&cfgstring).unwrap();
-    let addr = std::net::SocketAddr::from_str(&config.general.listento)
-        .expect("Error reading \"listento\" value.\n");
-
-    use slog::Drain;
 
     let rtlog_decorator = slog_term::PlainSyncDecorator::new(std::io::stdout());
     let rtlog = slog::Logger::root(
@@ -163,25 +162,28 @@ fn main() {
         o!(env!("CARGO_PKG_NAME") => env!("CARGO_PKG_VERSION")),
     );
 
-    match listen_and_serve(addr, config.general.rootdir, config.general.user, rtlog) {
+    match listen_and_serve(config, rtlog) {
         Some(_) => exit(ExitCode::FAILURE.report()),
         None => exit(ExitCode::SUCCESS.report()),
     }
 }
 
 fn listen_and_serve(
-    addr: std::net::SocketAddr,
-    root: String,
-    user: String,
+    config: Config,
     rtlog: slog::Logger,
 ) -> Option<std::io::Error> {
     // Create tcp listener on provided address
-    let listener = TcpListener::bind(&addr).expect("Unable to bind TcpListener");
-    let llog = rtlog.new(o!("local address" => format!("{}", listener.local_addr().unwrap())));
+    let addr = std::net::SocketAddr::from_str(&config.general.listento)
+        .expect("Error reading \"listento\" value.\n");
+    let listener =
+        TcpListener::bind(&addr).expect("Unable to bind TcpListener");
+    let llog = rtlog.new(
+        o!("local address" => format!("{}", listener.local_addr().unwrap())),
+    );
     info!(llog, "listening");
 
     // Setting desired uid
-    let desired = get_user_by_name(&user)?;
+    let desired = get_user_by_name(&config.general.user)?;
     if desired.uid() != get_current_uid() {
         users::switch::set_current_uid(desired.uid()).unwrap();
     }
@@ -191,7 +193,9 @@ fn listen_and_serve(
         .incoming()
         .map_err(|e| error!(rtlog, "accept failed = {:?}", e))
         .for_each(|mut stream| {
-            let clog = llog.new(o!("peer address" => format!("{}", stream.peer_addr().unwrap())));
+            let clog = llog.new(
+                o!("peer address" => format!("{}", stream.peer_addr().unwrap())),
+            );
             info!(clog, "new connection received");
 
             // Read stream into buffer
@@ -205,7 +209,10 @@ fn listen_and_serve(
                 match parse_input(input.to_string()).unwrap() {
                     GopherMessage::ListDir(selector) => {
                         info!(clog, "got directory list request"; "selector" => &selector);
-                        let listing = get_directory_listing(root.clone(), selector).unwrap();
+                        let listing = get_directory_listing(
+                            config.general.rootdir.clone(),
+                            selector,
+                        ).unwrap();
                         for l in listing {
                             stream
                                 .write_fmt(format_args!(
@@ -249,7 +256,10 @@ fn get_directory_listing(
         // gets pushed into res when its a directory or file
         let mut diren = DirectoryEntry {
             gtype: GopherType::Error,
-            description: format!("{}", entry.file_name().into_string().unwrap()), //TODO
+            description: format!(
+                "{}",
+                entry.file_name().into_string().unwrap()
+            ), //TODO
             selector: format!(
                 "{}",
                 entry
@@ -283,7 +293,9 @@ fn parse_input(input: String) -> Result<GopherMessage, &'static str> {
             }
             let selector_and_search: Vec<&str> = input.split("\t").collect();
             if selector_and_search.len() < 2 {
-                return Ok(GopherMessage::ListDir(selector_and_search[0].to_string()));
+                return Ok(GopherMessage::ListDir(
+                    selector_and_search[0].to_string(),
+                ));
             }
             let mut selector = String::new();
 

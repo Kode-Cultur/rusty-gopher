@@ -18,8 +18,8 @@
  *    Authors: Stefan Luecke <glaxx@glaxx.net>
  *             Nicolas Martin <penguwingit@gmail.com>
  */
-use super::std;
 use self::GopherType::*;
+use super::std;
 
 #[derive(Debug, PartialEq)]
 pub enum GopherType {

@@ -19,8 +19,8 @@
  *             Nicolas Martin <penguwingit@gmail.com>
  */
 use super::std;
-use std::str::FromStr;
 use gophertype::GopherType;
+use std::str::FromStr;
 
 #[derive(Debug)]
 pub struct DirectoryEntry {
@@ -71,14 +71,20 @@ impl DirectoryEntry {
         }
     }
 
-    pub fn from_dir_entry(e: std::fs::DirEntry, host: String, port: u16) -> DirectoryEntry {
+    pub fn from_dir_entry(
+        e: std::fs::DirEntry,
+        host: String,
+        port: u16,
+    ) -> DirectoryEntry {
         let mut ft = GopherType::Error;
         if let Ok(ftype) = e.file_type() {
             if ftype.is_dir() {
                 ft = GopherType::Directory;
             } else if ftype.is_file() {
                 if let Some(ext) = e.path().extension() {
-                    ft = GopherType::from_file_extension(ext.to_str().unwrap_or(""));
+                    ft = GopherType::from_file_extension(
+                        ext.to_str().unwrap_or(""),
+                    );
                 } else {
                     ft = GopherType::BinaryFile;
                 }
@@ -87,8 +93,14 @@ impl DirectoryEntry {
 
         DirectoryEntry {
             gtype: ft,
-            description: format!("{}", e.file_name().into_string().unwrap_or("".to_string())),
-            selector: format!("{}", e.path().to_str().unwrap_or("").to_string()),
+            description: format!(
+                "{}",
+                e.file_name().into_string().unwrap_or("".to_string())
+            ),
+            selector: format!(
+                "{}",
+                e.path().to_str().unwrap_or("").to_string()
+            ),
             host: host,
             port: port,
         }
@@ -125,12 +137,21 @@ fn is_tab(chr: u8) -> bool {
 }
 
 named!(
-    gopher_entry<(&str, &str, &str, &str, Result<u16, std::num::ParseIntError>)>,
+    gopher_entry<(
+        &str,
+        &str,
+        &str,
+        &str,
+        Result<u16, std::num::ParseIntError>
+    )>,
     do_parse!(
         gtype: map_res!(take!(1), std::str::from_utf8)
-            >> descr: map_res!(take_till!(is_tab), std::str::from_utf8) >> tag_s!("\t")
-            >> selec: map_res!(take_till!(is_tab), std::str::from_utf8) >> tag_s!("\t")
-            >> host: map_res!(take_till!(is_tab), std::str::from_utf8) >> tag_s!("\t")
+            >> descr: map_res!(take_till!(is_tab), std::str::from_utf8)
+            >> tag_s!("\t")
+            >> selec: map_res!(take_till!(is_tab), std::str::from_utf8)
+            >> tag_s!("\t")
+            >> host: map_res!(take_till!(is_tab), std::str::from_utf8)
+            >> tag_s!("\t")
             >> port: map!(
                 map_res!(dbg!(take_while!(is_digit)), std::str::from_utf8),
                 u16::from_str
